@@ -1,6 +1,44 @@
 defmodule Rift.Struct do
-  @moduledoc """
+  @moduledoc ~S"""
   Parse your thrift files and build some Elixir-y structs and conversions functions for you.
+
+  Assuming you have the following Thrift strucs defined in src/request_types.erl:
+
+        struct User {
+          1: i32 id,
+          2: string firstName,
+          3: string lastName;
+        }
+
+        struct Request {
+          1: User user,
+          2: list<string> cookies,
+          3: map<string, string> params;
+        }
+
+
+  You import them thusly:
+
+    defmodule Request do
+       use Rift.Struct, request_types: [:Request, :User]
+    end
+
+  Note that the use statment takes a keyword list whose names are thrift modules and whose values are
+  the structs that you would like to import.
+
+  Your request module now has User and Request submodules, and the top level module has conversion
+  functions added to it so you can do the following:
+
+        Request.to_elixir({:User, 32, "Steve", "Cohen"})
+        > %Request.User{id: 32, firstName: "Steve", lastName: "Cohen"}
+
+        user = Request.User.new(firstName: "Richard", lastName: "Feynman", id: 3221)
+        > %Request.User{id: 3221, firstName: "Richard", lastName: "Feynman"}
+        Request.to_erlang(user)
+        > {:User, 3221, "Richard", "Feynman"}
+
+  ### Note:
+  Keys not set will have the initial value of :undefined.
 
   """
   defmodule StructData do
@@ -111,7 +149,7 @@ defmodule Rift.Struct do
           end)
       end)
 
-    x = quote do
+    quote do
       unquote_splicing(struct_data.struct_modules)
       unquote_splicing(struct_data.tuple_converters)
 
