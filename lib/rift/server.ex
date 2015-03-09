@@ -1,4 +1,59 @@
 defmodule Rift.Server do
+  @moduledoc ~S"""
+  ### Rift: Bridging the divide between Thrift and Elixir.
+
+  This module provides a server and datastructure mappings to help you build thrift servers
+  in Elixir. Macros dutifully work behind the scenes to give you near-seamless access to Thrift
+  structures.
+
+  ## Usage
+
+  The Thrift erlang implementation doesn't provide the ability to enumerate all defined RPC functions,
+  so you need to tell Rift which functions you'd like to expose in your server. After doing this, the
+  Thrift metadata is interrogated and your return types are figured out and built for you. They're
+  available for you to use in a module of your choosing.
+
+  The example below assumes a thrift service called database defined in src/database_thrift.erl. The
+  database exports select, delete and insert as functions. These functions take a string and a list of
+  strings and return a ResultSet thrift object.
+
+
+        defmodule Server do
+          use Rift.Server, thrift_module: :database_thrift,
+          struct_module: DB,
+          functions: [select: &Handlers.select/2,
+                      insert: &Handlers.insert/2,
+                      delete: &Handlers.delete/2],
+
+          server: {:thrift_socket_server,
+                   port: 3306,
+                   framed: true,
+                   max: 5000,
+                   socket_opts: [recv_timeout: 3000]
+         }
+        end
+
+        defmodule Handlers do
+          def select(query, args) do
+            %DB.ResultSet.new(num_rows: 0, results: [])
+          end
+
+          def insert(query, args) do
+            %DB.ResultSet.new(num_rows: 0, results: [])
+          end
+
+          def delete(query, args) do
+            %DB.ResultSet.new(num_rows: 0, results: [])
+          end
+        end
+
+
+  ### Usage:
+
+        Server.start_link
+
+
+  """
   require Rift.Struct
 
   defmodule State do
@@ -144,6 +199,7 @@ defmodule Rift.Server do
       end
 
       unquote_splicing(state.handlers)
+
       def handle_function(_, _) do
         raise "Not Implemented"
       end
