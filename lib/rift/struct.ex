@@ -1,4 +1,4 @@
-defmodule Thrifty.Struct do
+defmodule Rift.Struct do
   defmodule StructData do
     defstruct struct_modules: [], tuple_stanzas: [], struct_protocols: []
     def append(data=%StructData{}, struct_module, tuple_stanza, struct_protocol) do
@@ -11,7 +11,7 @@ defmodule Thrifty.Struct do
   defmacro __using__(opts) do
     quote do
       @thrift_options unquote(opts)
-      @before_compile Thrifty.Struct
+      @before_compile Rift.Struct
     end
   end
 
@@ -63,7 +63,7 @@ defmodule Thrifty.Struct do
 
     pos_args = [thrift_name] ++ Enum.map(meta, fn({_, _, _, name, _}) -> {name, [], module_name} end)
     pos_args = {:{}, [], pos_args}
-    keyword_args = Enum.map(meta, fn({_,_,_,name,_}) -> {name, {{:., [], [{:__aliases__, [alias: false], [:Thrifty, :Adapt]}, :to_elixir]}, [], [{name, [], module_name}]}} end)
+    keyword_args = Enum.map(meta, fn({_,_,_,name,_}) -> {name, {{:., [], [{:__aliases__, [alias: false], [:Rift, :Adapt]}, :to_elixir]}, [], [{name, [], module_name}]}} end)
 
     quote do
       def to_elixir(unquote(pos_args)) do
@@ -75,9 +75,9 @@ defmodule Thrifty.Struct do
 
   defp build_struct_protocol(struct_module, meta, record_fn_name, record_name) do
     kwargs = Enum.map(meta, fn({_, _, _, name, _}) ->
-                        {name, {{:., [], [{:s, [], Thrifty.Struct}, name]}, [], []}} end)
+                        {name, {{:., [], [{:s, [], Rift.Struct}, name]}, [], []}} end)
     quote do
-      defimpl Thrifty.Adapt, for: unquote(struct_module) do
+      defimpl Rift.Adapt, for: unquote(struct_module) do
         require unquote(struct_module)
         def to_erlang(s) do
           unquote(struct_module).unquote(record_fn_name)(unquote(kwargs))
@@ -93,7 +93,7 @@ defmodule Thrifty.Struct do
 
   defp build_tuple_protocol(tuple_stanzas) do
     quote do
-      defimpl Thrifty.Adapt, for: Tuple do
+      defimpl Rift.Adapt, for: Tuple do
         def to_erlang(t) do
           t
         end
@@ -105,10 +105,10 @@ defmodule Thrifty.Struct do
             :dict ->
               Enum.into(:dict.to_list(t), HashDict.new,
                         fn({k, v}) ->
-                          {Thrifty.Adapt.to_elixir(k), Thrifty.Adapt.to_elixir(v)}
+                          {Rift.Adapt.to_elixir(k), Rift.Adapt.to_elixir(v)}
                         end)
             :set ->
-              Enum.into(:sets.to_list(t), HashSet.new, &Thrifty.Adapt.to_elixir/1)
+              Enum.into(:sets.to_list(t), HashSet.new, &Rift.Adapt.to_elixir/1)
             _ -> t
           end
         end
@@ -117,7 +117,6 @@ defmodule Thrifty.Struct do
   end
 
   defmacro __before_compile__(env) do
-    IO.puts "It's open? #{Module.open?(Thrifty.TupleBuilder)}"
     options = Module.get_attribute(env.module, :thrift_options)
 
     struct_data = Enum.reduce(

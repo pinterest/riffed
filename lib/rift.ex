@@ -1,0 +1,2 @@
+defmodule Rift do
+end
