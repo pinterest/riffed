@@ -31,6 +31,7 @@ defmodule Rift.Server do
       @thrift_module unquote(opts[:thrift_module])
       @functions unquote(opts[:functions])
       @struct_module unquote(opts[:struct_module])
+      @server unquote(opts[:server])
       @before_compile Rift.Server
     end
   end
@@ -74,9 +75,9 @@ defmodule Rift.Server do
   end
 
   defp build_arg_cast(name) do
-    var = {name, [], nil}
+    var = Macro.var(name, nil)
     quote do
-      unquote(var) = Rift.Adapt.to_elixir(unquote(var))
+      unquote(var) = Data.to_elixir(unquote(var))
     end
   end
 
@@ -89,7 +90,7 @@ defmodule Rift.Server do
                 [delegate_info[:module]]}, delegate_info[:name]]}, [], arg_list}
   end
 
-  defp build_handler(state=%State{}, thrift_module, thrift_fn_name, delegate_fn) do
+  defp build_handler(state=%State{}, struct_module, thrift_module, thrift_fn_name, delegate_fn) do
     {:struct, param_meta} = thrift_module.function_info(thrift_fn_name, :params_type)
     reply_meta = thrift_module.function_info(thrift_fn_name, :reply_type)
     {:struct, exception_meta} = thrift_module.function_info(thrift_fn_name, :exceptions)
@@ -111,7 +112,7 @@ defmodule Rift.Server do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
         unquote_splicing(casts)
         rsp = unquote(delegate_call)
-        Rift.Adapt.to_erlang(rsp)
+        unquote(struct_module).to_erlang(rsp)
       end
     end
     State.append_handler(state, handler)
@@ -121,16 +122,25 @@ defmodule Rift.Server do
     functions = Module.get_attribute(env.module, :functions)
     struct_module = Module.get_attribute(env.module, :struct_module)
     thrift_module = Module.get_attribute(env.module, :thrift_module)
+    {server, server_opts}= Module.get_attribute(env.module, :server)
 
     state = Enum.reduce(functions, %State{},
       fn({fn_name, delegate}, state) ->
-        build_handler(state, thrift_module, fn_name, delegate) end)
+        build_handler(state, struct_module, thrift_module, fn_name, delegate) end)
 
     structs_keyword = State.structs_to_keyword(state)
-    out = quote do
-      import Rift.Adapt
+    quote do
       defmodule unquote(struct_module) do
         use Rift.Struct, unquote(structs_keyword)
+      end
+
+      def start_link do
+        default_opts = [service: unquote(thrift_module),
+                        handler: unquote(env.module),
+                        name: unquote(env.module)]
+        opts = Keyword.merge(unquote(server_opts), default_opts)
+        {:ok, server_pid} = unquote(server).start(opts)
+        {:ok, server_pid}
       end
 
       unquote_splicing(state.handlers)
@@ -138,9 +148,6 @@ defmodule Rift.Server do
         raise "Not Implemented"
       end
     end
-
-    #out |> Macro.to_string |> IO.puts
-    out
   end
 
 

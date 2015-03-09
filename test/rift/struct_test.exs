@@ -16,18 +16,19 @@ defmodule StructTest do
   end
 
   test "You should be able to turn a struct into a tuple" do
-    tuple = Structs.Inner.new(name: "Stinkypants") |> Rift.Adapt.to_erlang
+    tuple = Structs.Inner.new(name: "Stinkypants") |> Structs.to_erlang
     assert {:Inner, "Stinkypants"} == tuple
   end
 
   test "You should be able to turn a tuple into a struct" do
     expected = Structs.Inner.new(name: "Stinkypants")
-    assert expected == Rift.Adapt.to_elixir({:Inner, "Stinkypants"})
+    assert expected == Structs.to_elixir({:Inner, "Stinkypants"})
   end
 
   test "it should handle nested structs" do
     erlang = {:Nested, {:Inner, "stinkypants"}}
-    req = Rift.Adapt.to_elixir(erlang)
+    req = Structs.to_elixir(erlang)
+
     assert Structs.Inner.new(name: "stinkypants") == req.inner
   end
 
