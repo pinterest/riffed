@@ -1,10 +1,15 @@
 defmodule Rift.Struct do
+  @moduledoc """
+  Parse your thrift files and build some Elixir-y structs and conversions functions for you.
+
+  """
   defmodule StructData do
-    defstruct struct_modules: [], tuple_stanzas: [], struct_protocols: []
-    def append(data=%StructData{}, struct_module, tuple_stanza, struct_protocol) do
+    defstruct struct_modules: [], tuple_converters: [], struct_converters: []
+
+    def append(data=%StructData{}, struct_module, tuple_stanza, struct_function) do
       %StructData{struct_modules: [struct_module | data.struct_modules],
-                  tuple_stanzas: [tuple_stanza | data.tuple_stanzas],
-                  struct_protocols: [struct_protocol | data.struct_protocols]}
+                  tuple_converters: [tuple_stanza | data.tuple_converters],
+                  struct_converters: [struct_function | data.struct_converters]}
     end
   end
 
@@ -31,15 +36,15 @@ defmodule Rift.Struct do
     |> String.to_atom
   end
 
-  defp build_struct_and_protocol(struct_data=%StructData{}, container_module, struct_module_name, thrift_module)  do
+  defp build_struct_and_conversion_function(struct_data=%StructData{}, container_module, struct_module_name, thrift_module)  do
     {:struct, meta} = :erlang.apply(thrift_module, :struct_info_ext, [struct_module_name])
     struct_args = build_struct_args(meta)
     fq_module_name = Module.concat([container_module, struct_module_name])
     record_name = downcase_first(struct_module_name)
     record_file = "src/#{thrift_module}.hrl"
 
-    tuple_stanza = build_tuple_stanza(struct_module_name, fq_module_name, meta)
-    struct_protocol = build_struct_protocol(fq_module_name, meta, record_name, struct_module_name)
+    tuple_to_elixir = build_tuple_to_elixir(container_module, struct_module_name, fq_module_name, meta)
+    struct_to_erlang = build_struct_to_erlang(fq_module_name, meta, record_name, struct_module_name)
 
     struct_module = quote do
       defmodule unquote(fq_module_name) do
@@ -56,62 +61,39 @@ defmodule Rift.Struct do
       end
     end
 
-    StructData.append(struct_data, struct_module, tuple_stanza, struct_protocol)
+    StructData.append(struct_data, struct_module, tuple_to_elixir, struct_to_erlang)
   end
 
-  defp build_tuple_stanza(thrift_name, module_name, meta) do
+  defp build_tuple_to_elixir(container_module, thrift_name, module_name, meta) do
+    # Builds a conversion function that take a tuple and converts it into an Elixir struct
 
-    pos_args = [thrift_name] ++ Enum.map(meta, fn({_, _, _, name, _}) -> {name, [], module_name} end)
+    pos_args = [thrift_name] ++ Enum.map(meta, fn({_, _, _, name, _}) ->
+                                           Macro.var(name, module_name) end)
     pos_args = {:{}, [], pos_args}
-    keyword_args = Enum.map(meta, fn({_,_,_,name,_}) -> {name, {{:., [], [{:__aliases__, [alias: false], [:Rift, :Adapt]}, :to_elixir]}, [], [{name, [], module_name}]}} end)
+    keyword_args = Enum.map(
+      meta, fn({_,_,_,name,_}) ->
+        {name, {{:., [], [{:__aliases__, [], [container_module]}, :to_elixir]},
+                [], [Macro.var(name, module_name)]}} end)
 
     quote do
       def to_elixir(unquote(pos_args)) do
+
         unquote(module_name).new(unquote(keyword_args))
       end
 
     end
   end
 
-  defp build_struct_protocol(struct_module, meta, record_fn_name, record_name) do
+  defp build_struct_to_erlang(struct_module, meta, record_fn_name, record_name) do
+    #  Builds a conversion function that turns an Elixir struct into an erlang record
+
     kwargs = Enum.map(meta, fn({_, _, _, name, _}) ->
                         {name, {{:., [], [{:s, [], Rift.Struct}, name]}, [], []}} end)
     quote do
-      defimpl Rift.Adapt, for: unquote(struct_module) do
+      def to_erlang(s=%unquote(struct_module){}) do
         require unquote(struct_module)
-        def to_erlang(s) do
-          unquote(struct_module).unquote(record_fn_name)(unquote(kwargs))
-          |> put_elem(0, unquote(record_name))
-        end
-
-        def to_elixir(s=%unquote(struct_module){}) do
-          s
-        end
-      end
-    end
-  end
-
-  defp build_tuple_protocol(tuple_stanzas) do
-    quote do
-      defimpl Rift.Adapt, for: Tuple do
-        def to_erlang(t) do
-          t
-        end
-
-        unquote_splicing(tuple_stanzas)
-        def to_elixir(t) do
-          first = elem(t, 0)
-          case first do
-            :dict ->
-              Enum.into(:dict.to_list(t), HashDict.new,
-                        fn({k, v}) ->
-                          {Rift.Adapt.to_elixir(k), Rift.Adapt.to_elixir(v)}
-                        end)
-            :set ->
-              Enum.into(:sets.to_list(t), HashSet.new, &Rift.Adapt.to_elixir/1)
-            _ -> t
-          end
-        end
+        unquote(struct_module).unquote(record_fn_name)(unquote(kwargs))
+        |> put_elem(0, unquote(record_name))
       end
     end
   end
@@ -124,19 +106,64 @@ defmodule Rift.Struct do
       %StructData{},
       fn({thrift_module, struct_names}, data) ->
         Enum.reduce(struct_names, data,
-                    fn(struct_name, data) ->
-                      build_struct_and_protocol(data, env.module, struct_name, thrift_module)
-                    end)
+          fn(struct_name, data) ->
+            build_struct_and_conversion_function(data, env.module, struct_name, thrift_module)
+          end)
       end)
 
-    tuple_protocol = build_tuple_protocol(struct_data.tuple_stanzas)
-   x = quote do
+    x = quote do
       unquote_splicing(struct_data.struct_modules)
-      unquote(tuple_protocol)
-      unquote_splicing(struct_data.struct_protocols)
+      unquote_splicing(struct_data.tuple_converters)
+
+      def to_elixir(t) when is_tuple(t) do
+        first = elem(t, 0)
+        case first do
+          :dict ->
+            Enum.into(:dict.to_list(t), HashDict.new,
+              fn({k, v}) ->
+                {to_elixir(k), to_elixir(v)}
+              end)
+          :set ->
+            Enum.into(:sets.to_list(t), HashSet.new, &to_elixir/1)
+          _ ->
+            t
+        end
+      end
+
+      def to_elixir(l) when is_list(l) do
+        Enum.map(l, &to_elixir(&1))
+      end
+
+      def to_elixir(x) do
+        x
+      end
+
+      unquote_splicing(struct_data.struct_converters)
+
+      def to_erlang(l) when is_list(l) do
+        Enum.map(l, &to_erlang(&1))
+      end
+
+      def to_erlang(d=%HashDict{}) do
+        d
+        |> Dict.to_list
+        |> Enum.map(fn({k, v}) ->
+                      {to_erlang(k), to_erlang(v)}
+                    end)
+        |> :dict.from_list
+      end
+
+      def to_erlang(hs=%HashSet{}) do
+        hs
+        |> Set.to_list
+        |> Enum.map(&to_erlang/1)
+        |>  :sets.from_list
+      end
+
+      def to_erlang(x) do
+        x
+      end
     end
-   # x |> Macro.to_string |> IO.puts
-   x
   end
 
 end

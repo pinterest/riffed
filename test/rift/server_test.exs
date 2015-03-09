@@ -10,8 +10,16 @@ defmodule ServerTest do
                 setFun: &ServerTest.FakeHandler.set_fun/1,
                 setUserFun: &ServerTest.FakeHandler.set_fun/1,
                 listFun: &ServerTest.FakeHandler.list_fun/1,
-                listUserFun: &ServerTest.FakeHandler.list_fun/1]
+                listUserFun: &ServerTest.FakeHandler.list_fun/1],
 
+    server: {:thrift_socket_server,
+             port: 2112,
+             framed: true,
+             max: 10_000,
+             socket_opts: [
+                     recv_timeout: 3000,
+                     keepalive: true]
+            }
   end
 
   defmodule FakeHandler do
@@ -31,8 +39,8 @@ defmodule ServerTest do
     def config(req=%Data.ConfigRequest{}, timestamp) do
       FakeHandler.set_args({req, timestamp})
       Data.ConfigResponse.new(template: req.template,
-                                     requestCount: req.requestCount,
-                                     per: 1)
+                              requestCount: req.requestCount,
+                              per: 1)
     end
 
     def dict_fun(d=%HashDict{}) do
