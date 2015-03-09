@@ -2,4 +2,4 @@
 Rift
 =======
 
-Helpers for using Thrift in Elixir.
+Healing the rift between Elixir and Thrift.
