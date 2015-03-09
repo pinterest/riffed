@@ -91,7 +91,7 @@ defmodule Rift.Server do
     end
   end
 
-  def append_struct(state=%State{}, {:struct, info={module, struct_name}}) do
+  defp append_struct(state=%State{}, {:struct, info={module, struct_name}}) do
     # find out if our structs have nested structs by getting their info
     # and searching for them
     {:struct, struct_info} = :erlang.apply(module, :struct_info, [struct_name])
@@ -101,7 +101,7 @@ defmodule Rift.Server do
     State.append_struct(state, [:struct, info])
   end
 
-  def append_struct(state=%State{}, _) do
+  defp append_struct(state=%State{}, _) do
     state
   end
 
@@ -120,13 +120,15 @@ defmodule Rift.Server do
 
   def build_arg_list(size) when is_integer(size) do
     Enum.map(1..size, fn(param_idx) ->
-               param_name = String.to_atom("arg_#{param_idx}")
-               {param_name, [], nil}
+               "arg_#{param_idx}"
+               |> String.to_atom
+               |> Macro.var(nil)
              end)
   end
 
-  def build_handler_tuple_args(param_meta) do
-    {:{}, [], build_arg_list(length(param_meta))}
+  defp build_handler_tuple_args(param_meta) do
+    args =  param_meta |> length |> build_arg_list
+    {:{}, [], args}
   end
 
   defp build_arg_cast(name) do
