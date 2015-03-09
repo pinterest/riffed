@@ -2,7 +2,7 @@ defmodule StructTest do
   use ExUnit.Case
 
   defmodule Structs do
-    use Thrifty.Struct, struct_types: [:Inner, :Nested]
+    use Rift.Struct, struct_types: [:Inner, :Nested]
   end
 
   test "You should be able to create a new struct" do
@@ -16,18 +16,18 @@ defmodule StructTest do
   end
 
   test "You should be able to turn a struct into a tuple" do
-    tuple = Structs.Inner.new(name: "Stinkypants") |> Thrifty.Adapt.to_erlang
+    tuple = Structs.Inner.new(name: "Stinkypants") |> Rift.Adapt.to_erlang
     assert {:Inner, "Stinkypants"} == tuple
   end
 
   test "You should be able to turn a tuple into a struct" do
     expected = Structs.Inner.new(name: "Stinkypants")
-    assert expected == Thrifty.Adapt.to_elixir({:Inner, "Stinkypants"})
+    assert expected == Rift.Adapt.to_elixir({:Inner, "Stinkypants"})
   end
 
   test "it should handle nested structs" do
     erlang = {:Nested, {:Inner, "stinkypants"}}
-    req = Thrifty.Adapt.to_elixir(erlang)
+    req = Rift.Adapt.to_elixir(erlang)
     assert Structs.Inner.new(name: "stinkypants") == req.inner
   end
 

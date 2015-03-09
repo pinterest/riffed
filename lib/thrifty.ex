@@ -1,2 +1,0 @@
-defmodule Thrifty do
-end

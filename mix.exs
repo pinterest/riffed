@@ -1,4 +1,4 @@
-defmodule Thrifty.Mixfile do
+defmodule Rift.Mixfile do
   use Mix.Project
 
   def project do

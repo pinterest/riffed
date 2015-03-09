@@ -1,4 +1,4 @@
-Thrifty
+Rift
 =======
 
-** TODO: Add description **
+Healing the rift between Elixir and Thrift.

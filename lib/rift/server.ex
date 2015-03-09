@@ -1,5 +1,5 @@
-defmodule Thrifty.Server do
-  require Thrifty.Struct
+defmodule Rift.Server do
+  require Rift.Struct
 
   defmodule State do
     defstruct structs: [], handlers: []
@@ -24,14 +24,14 @@ defmodule Thrifty.Server do
 
   defmacro __using__(opts) do
     quote do
-      require Thrifty.Server
-      require Thrifty.Struct
-      import Thrifty.Server
+      require Rift.Server
+      require Rift.Struct
+      import Rift.Server
 
       @thrift_module unquote(opts[:thrift_module])
       @functions unquote(opts[:functions])
       @struct_module unquote(opts[:struct_module])
-      @before_compile Thrifty.Server
+      @before_compile Rift.Server
     end
   end
 
@@ -76,7 +76,7 @@ defmodule Thrifty.Server do
   defp build_arg_cast(name) do
     var = {name, [], nil}
     quote do
-      unquote(var) = Thrifty.Adapt.to_elixir(unquote(var))
+      unquote(var) = Rift.Adapt.to_elixir(unquote(var))
     end
   end
 
@@ -111,7 +111,7 @@ defmodule Thrifty.Server do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
         unquote_splicing(casts)
         rsp = unquote(delegate_call)
-        Thrifty.Adapt.to_erlang(rsp)
+        Rift.Adapt.to_erlang(rsp)
       end
     end
     State.append_handler(state, handler)
@@ -128,9 +128,9 @@ defmodule Thrifty.Server do
 
     structs_keyword = State.structs_to_keyword(state)
     out = quote do
-      import Thrifty.Adapt
+      import Rift.Adapt
       defmodule unquote(struct_module) do
-        use Thrifty.Struct, unquote(structs_keyword)
+        use Rift.Struct, unquote(structs_keyword)
       end
 
       unquote_splicing(state.handlers)
