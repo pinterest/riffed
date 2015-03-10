@@ -11,7 +11,7 @@ Rift Provides two modules, `Rift.Struct` and `Rift.Server` which will help you m
 
 #### Rift.Struct
 
-You tell `Rift.Struct` about your Erlang Thrift modules and which structs you would like to import. It then looks at the thrift files, parses their metadata and builds Elixir structs for you. It also creates `to_elixir` and `to_thrift` functions that will handle converting Erlang records into Elixir structs and vice versa.
+You tell `Rift.Struct` about your Erlang Thrift modules and which structs you would like to import. It then looks at the thrift files, parses their metadata and builds Elixir structs for you. It also creates `to_elixir` and `to_erlang` functions that will handle converting Erlang records into Elixir structs and vice versa.
 
 Assuming you have a Thrift module called `pinterest_types` in your `src` directory:
 
@@ -57,8 +57,8 @@ You can set it up like this:
 
 ```elixir
 defmodule Server do
-    use Rift.Server, thrift_module: :pinterest_thrift,
-    struct_module: Data,
+    use Rift.Server, service: :pinterest_thrift,
+    structs: Data,
     functions: [register: &ThriftHandlers.register/2,
                 isRegistered: &ThriftHandlers.is_registered/1
     ],

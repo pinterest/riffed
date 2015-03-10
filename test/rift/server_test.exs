@@ -2,8 +2,8 @@ defmodule ServerTest do
   use ExUnit.Case
 
   defmodule Server do
-    use Rift.Server, thrift_module: :server_thrift,
-    struct_module: Data,
+    use Rift.Server, service: :server_thrift,
+    structs: Data,
     functions: [config: &ServerTest.FakeHandler.config/2,
                 dictFun: &ServerTest.FakeHandler.dict_fun/1,
                 dictUserFun: &ServerTest.FakeHandler.dict_fun/1,

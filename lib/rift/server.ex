@@ -19,8 +19,8 @@ defmodule Rift.Server do
 
 
         defmodule Server do
-          use Rift.Server, thrift_module: :database_thrift,
-          struct_module: DB,
+          use Rift.Server, service: :database_thrift,
+          structs: DB,
           functions: [select: &Handlers.select/2,
                       insert: &Handlers.insert/2,
                       delete: &Handlers.delete/2],
@@ -81,9 +81,9 @@ defmodule Rift.Server do
       require Rift.Struct
       import Rift.Server
 
-      @thrift_module unquote(opts[:thrift_module])
+      @thrift_module unquote(opts[:service])
       @functions unquote(opts[:functions])
-      @struct_module unquote(opts[:struct_module])
+      @struct_module unquote(opts[:structs])
       @server unquote(opts[:server])
       @before_compile Rift.Server
     end
