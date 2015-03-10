@@ -153,14 +153,15 @@ defmodule Rift.Struct do
       unquote_splicing(struct_data.struct_modules)
       unquote_splicing(struct_data.tuple_converters)
 
+      def to_elixir({k, v}) do
+        {to_elixir(k), to_elixir(v)}
+      end
+
       def to_elixir(t) when is_tuple(t) do
         first = elem(t, 0)
         case first do
           :dict ->
-            Enum.into(:dict.to_list(t), HashDict.new,
-              fn({k, v}) ->
-                {to_elixir(k), to_elixir(v)}
-              end)
+            Enum.into(:dict.to_list(t), HashDict.new, &to_elixir/1)
           :set ->
             Enum.into(:sets.to_list(t), HashSet.new, &to_elixir/1)
           _ ->
@@ -178,6 +179,10 @@ defmodule Rift.Struct do
 
       unquote_splicing(struct_data.struct_converters)
 
+      def to_erlang({k, v}) do
+        {to_erlang(k), to_erlang(v)}
+      end
+
       def to_erlang(l) when is_list(l) do
         Enum.map(l, &to_erlang(&1))
       end
@@ -185,9 +190,7 @@ defmodule Rift.Struct do
       def to_erlang(d=%HashDict{}) do
         d
         |> Dict.to_list
-        |> Enum.map(fn({k, v}) ->
-                      {to_erlang(k), to_erlang(v)}
-                    end)
+        |> Enum.map(&to_erlang/1)
         |> :dict.from_list
       end
 
@@ -195,7 +198,7 @@ defmodule Rift.Struct do
         hs
         |> Set.to_list
         |> Enum.map(&to_erlang/1)
-        |>  :sets.from_list
+        |> :sets.from_list
       end
 
       def to_erlang(x) do

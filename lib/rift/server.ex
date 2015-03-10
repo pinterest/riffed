@@ -54,8 +54,6 @@ defmodule Rift.Server do
 
 
   """
-  require Rift.Struct
-
   defmodule State do
     defstruct structs: [], handlers: []
 
@@ -207,6 +205,4 @@ defmodule Rift.Server do
       end
     end
   end
-
-
 end
