@@ -32,7 +32,7 @@ defmodule ServerTest do
       %Data.UserState{user_status | status: status}
     end
 
-    callback(:after_to_erlang, s={:UserState, user, state}) do
+    callback(:after_to_erlang, {:UserState, user, state}) do
       new_state = case state do
                     :active -> 1
                     :inactive -> 2
@@ -63,21 +63,21 @@ defmodule ServerTest do
                               per: 1)
     end
 
-    def dict_fun(d=%HashDict{}) do
-      FakeHandler.set_args(d)
+    def dict_fun(dict=%HashDict{}) do
+      FakeHandler.set_args(dict)
     end
 
-    def set_fun(s=%HashSet{}) do
-      FakeHandler.set_args(s)
+    def set_fun(hash_set=%HashSet{}) do
+      FakeHandler.set_args(hash_set)
     end
 
     def list_fun(l) when is_list(l) do
       FakeHandler.set_args(l)
     end
 
-    def get_state(u=%Data.UserState{}) do
-      FakeHandler.set_args(u)
-      u
+    def get_state(user_state=%Data.UserState{}) do
+      FakeHandler.set_args(user_state)
+      user_state
     end
   end
 
