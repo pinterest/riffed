@@ -66,17 +66,21 @@ defmodule Rift.Server do
     end
 
     def structs_to_keyword(state=%State{}) do
-      Enum.reduce(state.structs, HashDict.new,
-                fn([:struct, {thrift_module, module_name}],  dict) ->
-                  Dict.update(dict, thrift_module, [module_name], fn(l) -> [module_name | l]
-                              end)
-                end)
+      state.structs
+      |> Enum.uniq
+      |> Enum.reduce(HashDict.new,
+          fn([:struct, {thrift_module, module_name}],  dict) ->
+            Dict.update(dict, thrift_module, [module_name], fn(l) -> [module_name | l]
+                        end)
+          end)
       |> Enum.into(Keyword.new)
     end
   end
 
   defmacro __using__(opts) do
     quote do
+      use Rift.Callbacks
+
       require Rift.Server
       require Rift.Struct
       import Rift.Server
@@ -173,6 +177,19 @@ defmodule Rift.Server do
     State.append_handler(state, handler)
   end
 
+  defp reconstitute_callbacks(module) do
+    module
+    |> Module.get_attribute(:callbacks)
+    |> Enum.map(
+        fn(cb) ->
+          quote do
+            callback(unquote(cb.name), unquote(cb.guard)) do
+              unquote(cb.body)
+            end
+          end
+        end)
+  end
+
   defmacro __before_compile__(env) do
     functions = Module.get_attribute(env.module, :functions)
     struct_module = Module.get_attribute(env.module, :struct_module)
@@ -184,9 +201,11 @@ defmodule Rift.Server do
         build_handler(state, struct_module, thrift_module, fn_name, delegate) end)
 
     structs_keyword = State.structs_to_keyword(state)
-    quote do
+
+    quote  do
       defmodule unquote(struct_module) do
         use Rift.Struct, unquote(structs_keyword)
+        unquote_splicing(reconstitute_callbacks(env.module))
       end
 
       def start_link do
@@ -200,8 +219,8 @@ defmodule Rift.Server do
 
       unquote_splicing(state.handlers)
 
-      def handle_function(_, _) do
-        raise "Not Implemented"
+      def handle_function(name, args) do
+        raise "Handler #{inspect(name)} #{inspect(args)} Not Implemented"
       end
     end
   end

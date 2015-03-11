@@ -41,6 +41,7 @@ defmodule Rift.Struct do
   Keys not set will have the initial value of :undefined.
 
   """
+
   defmodule StructData do
     defstruct struct_modules: [], tuple_converters: [], struct_converters: []
 
@@ -51,8 +52,17 @@ defmodule Rift.Struct do
     end
   end
 
+
+
   defmacro __using__(opts) do
+    Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
+
     quote do
+      require Rift.Callbacks
+      import Rift.Callbacks, only: [callback: 3]
+      require Rift.Struct
+      import Rift.Struct
+
       @thrift_options unquote(opts)
       @before_compile Rift.Struct
     end
@@ -115,12 +125,12 @@ defmodule Rift.Struct do
 
     quote do
       def to_elixir(unquote(pos_args)) do
-
-        unquote(module_name).new(unquote(keyword_args))
+        unquote(module_name).new(unquote(keyword_args)) |> after_to_elixir
       end
 
     end
   end
+
 
   defp build_struct_to_erlang(struct_module, meta, record_fn_name, record_name) do
     #  Builds a conversion function that turns an Elixir struct into an erlang record
@@ -132,6 +142,7 @@ defmodule Rift.Struct do
         require unquote(struct_module)
         unquote(struct_module).unquote(record_fn_name)(unquote(kwargs))
         |> put_elem(0, unquote(record_name))
+        |> after_to_erlang
       end
     end
   end
@@ -148,6 +159,8 @@ defmodule Rift.Struct do
             build_struct_and_conversion_function(data, env.module, struct_name, thrift_module)
           end)
       end)
+
+    callbacks = Rift.Callbacks.build(env.module)
 
     quote do
       unquote_splicing(struct_data.struct_modules)
@@ -204,6 +217,8 @@ defmodule Rift.Struct do
       def to_erlang(x) do
         x
       end
+
+      unquote(callbacks)
     end
   end
 

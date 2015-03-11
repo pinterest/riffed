@@ -10,7 +10,9 @@ defmodule ServerTest do
                 setFun: &ServerTest.FakeHandler.set_fun/1,
                 setUserFun: &ServerTest.FakeHandler.set_fun/1,
                 listFun: &ServerTest.FakeHandler.list_fun/1,
-                listUserFun: &ServerTest.FakeHandler.list_fun/1],
+                listUserFun: &ServerTest.FakeHandler.list_fun/1,
+                getState: &ServerTest.FakeHandler.get_state/1
+               ],
 
     server: {:thrift_socket_server,
              port: 2112,
@@ -20,6 +22,24 @@ defmodule ServerTest do
                      recv_timeout: 3000,
                      keepalive: true]
             }
+
+    callback(:after_to_elixir, user_status=%Data.UserState{}) do
+      status = case user_status.status do
+                1 -> :active
+                2 -> :inactive
+                3 -> :banned
+              end
+      %Data.UserState{user_status | status: status}
+    end
+
+    callback(:after_to_erlang, s={:UserState, user, state}) do
+      new_state = case state do
+                    :active -> 1
+                    :inactive -> 2
+                    :banned -> 3
+                  end
+      {:UserState, user, new_state}
+    end
   end
 
   defmodule FakeHandler do
@@ -53,6 +73,11 @@ defmodule ServerTest do
 
     def list_fun(l) when is_list(l) do
       FakeHandler.set_args(l)
+    end
+
+    def get_state(u=%Data.UserState{}) do
+      FakeHandler.set_args(u)
+      u
     end
   end
 
@@ -140,5 +165,16 @@ defmodule ServerTest do
 
     assert [Data.User.new(firstName: "Steve", lastName: "Cohen")] == FakeHandler.args
     assert user_list == response
+  end
+
+  test "A callback is called when data is serialized" do
+    user_state = {:UserState, {:User, "Stinky", "Stinkman"}, 2}
+
+    response = Server.handle_function(:getState, {user_state})
+
+    assert :inactive == FakeHandler.args.status
+
+    {:UserState, _user, state} = response
+    assert state == 2
   end
 end
