@@ -2,7 +2,7 @@ defmodule Rift.Callbacks do
   @moduledoc ~S"""
   Callback implementation for structs.
 
-  Presently, you may define :after_to_elixir and after_to_erlang. after_to_elixir
+  Presently, you may define `after_to_elixir` and `after_to_erlang`. after_to_elixir
   is called after a tuple is converted to an Elixir struct and after_to_erlang is called
   when an Elixir struct is turned into a tuple.
   """
