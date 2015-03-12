@@ -123,7 +123,7 @@ defmodule Rift.Server do
   def build_arg_list(size) when is_integer(size) do
     case size do
      0 -> []
-     size -> 
+     size ->
     Enum.map(0..size - 1, fn(param_idx) ->
                "arg_#{param_idx + 1}"
                |> String.to_atom
@@ -176,7 +176,6 @@ defmodule Rift.Server do
         unquote_splicing(casts)
         rsp = unquote(delegate_call)
         reply = {:reply, unquote(struct_module).to_erlang(rsp)}
-        IO.puts inspect reply
         reply
       end
     end
@@ -208,7 +207,7 @@ defmodule Rift.Server do
 
     structs_keyword = State.structs_to_keyword(state)
 
-    x = quote  do
+    quote  do
       defmodule unquote(struct_module) do
         use Rift.Struct, unquote(structs_keyword)
         unquote_splicing(reconstitute_callbacks(env.module))
@@ -229,7 +228,5 @@ defmodule Rift.Server do
         raise "Handler #{inspect(name)} #{inspect(args)} Not Implemented"
       end
     end
-    x |> Macro.to_string |> IO.puts
-    x
   end
 end
