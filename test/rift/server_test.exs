@@ -89,7 +89,7 @@ defmodule ServerTest do
   test "it should convert structs to and from elixir" do
     request = {:ConfigRequest, "users/:me", 1000, {:User, 'Steve', 'Cohen'}}
 
-    response = Server.handle_function(:config, {request, 1000})
+    {:reply, response} = Server.handle_function(:config, {request, 1000})
 
     expected_user = Data.User.new(firstName: 'Steve', lastName: 'Cohen')
     expected_request = Data.ConfigRequest.new(template: "users/:me",
@@ -105,7 +105,7 @@ defmodule ServerTest do
   test "dicts are properly converted" do
     param = :dict.from_list([{'one', 1}, {'two', 2}])
 
-    response = Server.handle_function(:dictFun, {param})
+    {:reply, response} = Server.handle_function(:dictFun, {param})
 
     hash_dict = FakeHandler.args
     assert hash_dict['one'] == 1
@@ -118,7 +118,7 @@ defmodule ServerTest do
   test "dicts with structs are converted" do
     user_dict = :dict.from_list([{'steve', {:User, "Steve", "Cohen"}}])
 
-    response = Server.handle_function(:dictUserFun, {user_dict})
+    {:reply, response} = Server.handle_function(:dictUserFun, {user_dict})
 
     dict_arg = FakeHandler.args
     assert Data.User.new(firstName: "Steve", lastName: "Cohen") == dict_arg['steve']
@@ -129,7 +129,7 @@ defmodule ServerTest do
     user = Data.User.new(firstName: "Steve", lastName: "Cohen")
     param = :sets.from_list([{:User, "Steve", "Cohen"}])
 
-    response = Server.handle_function(:setUserFun, {param})
+    {:reply, response} = Server.handle_function(:setUserFun, {param})
 
     set_arg = FakeHandler.args
 
@@ -142,7 +142,7 @@ defmodule ServerTest do
     set_data = ['hi', 'there', 'guys']
     param = :sets.from_list(set_data)
 
-    response = Server.handle_function(:setFun, {param})
+    {:reply, response} = Server.handle_function(:setFun, {param})
 
     set_arg = FakeHandler.args
     assert Enum.into(set_data, HashSet.new) == set_arg
@@ -152,7 +152,7 @@ defmodule ServerTest do
   test "lists are handled properly" do
     list_data = [1, 2, 3, 4]
 
-    response = Server.handle_function(:listFun, {list_data})
+    {:reply, response} = Server.handle_function(:listFun, {list_data})
 
     assert [1, 2, 3, 4] == FakeHandler.args
     assert [1, 2, 3, 4] == response
@@ -161,7 +161,7 @@ defmodule ServerTest do
   test "lists of structs are properly converted" do
     user_list = [{:User, "Steve", "Cohen"}]
 
-    response = Server.handle_function(:listUserFun, {user_list})
+    {:reply, response} = Server.handle_function(:listUserFun, {user_list})
 
     assert [Data.User.new(firstName: "Steve", lastName: "Cohen")] == FakeHandler.args
     assert user_list == response
@@ -170,7 +170,7 @@ defmodule ServerTest do
   test "A callback is called when data is serialized" do
     user_state = {:UserState, {:User, "Stinky", "Stinkman"}, 2}
 
-    response = Server.handle_function(:getState, {user_state})
+    {:reply, response} = Server.handle_function(:getState, {user_state})
 
     assert :inactive == FakeHandler.args.status
 
