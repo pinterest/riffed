@@ -121,11 +121,15 @@ defmodule Rift.Server do
   end
 
   def build_arg_list(size) when is_integer(size) do
-    Enum.map(1..size, fn(param_idx) ->
-               "arg_#{param_idx}"
+    case size do
+     0 -> []
+     size -> 
+    Enum.map(0..size - 1, fn(param_idx) ->
+               "arg_#{param_idx + 1}"
                |> String.to_atom
                |> Macro.var(nil)
              end)
+    end
   end
 
   defp build_handler_tuple_args(param_meta) do
@@ -133,10 +137,10 @@ defmodule Rift.Server do
     {:{}, [], args}
   end
 
-  defp build_arg_cast(name) do
+  defp build_arg_cast(struct_module, name) do
     var = Macro.var(name, nil)
     quote do
-      unquote(var) = Data.to_elixir(unquote(var))
+      unquote(var) = unquote(struct_module).to_elixir(unquote(var))
     end
   end
 
@@ -164,14 +168,16 @@ defmodule Rift.Server do
     casts = param_meta
     |> Enum.with_index
     |> Enum.map(fn({_param_meta, idx}) ->
-                  build_arg_cast(String.to_atom("arg_#{idx + 1}"))
+                  build_arg_cast(struct_module, String.to_atom("arg_#{idx + 1}"))
                 end)
 
     handler = quote do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
         unquote_splicing(casts)
         rsp = unquote(delegate_call)
-        unquote(struct_module).to_erlang(rsp)
+        reply = {:reply, unquote(struct_module).to_erlang(rsp)}
+        IO.puts inspect reply
+        reply
       end
     end
     State.append_handler(state, handler)
@@ -202,7 +208,7 @@ defmodule Rift.Server do
 
     structs_keyword = State.structs_to_keyword(state)
 
-    quote  do
+    x = quote  do
       defmodule unquote(struct_module) do
         use Rift.Struct, unquote(structs_keyword)
         unquote_splicing(reconstitute_callbacks(env.module))
@@ -223,5 +229,7 @@ defmodule Rift.Server do
         raise "Handler #{inspect(name)} #{inspect(args)} Not Implemented"
       end
     end
+    x |> Macro.to_string |> IO.puts
+    x
   end
 end
