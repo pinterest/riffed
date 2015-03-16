@@ -26,7 +26,7 @@ defmodule StructTest do
 
   setup do
     {:ok, struct: Structs.Inner.new(name: "Stinkypants"),
-     tuple: {:Inner, "Stinkypants"}}
+     tuple: {:Inner, 'Stinkypants'}}
   end
 
   test "You should be able to create a new struct" do
@@ -50,7 +50,7 @@ defmodule StructTest do
   end
 
   test "it should handle nested structs" do
-    erlang = {:Nested, {:Inner, "stinkypants"}}
+    erlang = {:Nested, {:Inner, 'stinkypants'}}
     req = Structs.to_elixir(erlang)
     assert Structs.Inner.new(name: "stinkypants") == req.inner
   end

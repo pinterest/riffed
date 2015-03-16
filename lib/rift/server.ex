@@ -54,28 +54,9 @@ defmodule Rift.Server do
 
 
   """
-  defmodule State do
-    defstruct structs: [], handlers: []
-
-    def append_handler(state=%State{}, handler) do
-      %State{state | handlers: [handler | state.handlers]}
-    end
-
-    def append_struct(state=%State{}, struct) do
-      %State{state | structs: [struct | state.structs]}
-    end
-
-    def structs_to_keyword(state=%State{}) do
-      state.structs
-      |> Enum.uniq
-      |> Enum.reduce(HashDict.new,
-          fn([:struct, {thrift_module, module_name}],  dict) ->
-            Dict.update(dict, thrift_module, [module_name], fn(l) -> [module_name | l]
-                        end)
-          end)
-      |> Enum.into(Keyword.new)
-    end
-  end
+  import Rift.MacroHelpers
+  alias Rift.ThriftMeta, as: ThriftMeta
+  alias Rift.ThriftMeta.Meta, as: Meta
 
   defmacro __using__(opts) do
     quote do
@@ -93,57 +74,6 @@ defmodule Rift.Server do
     end
   end
 
-  defp append_struct(state=%State{}, {:struct, info={module, struct_name}}) do
-    # find out if our structs have nested structs by getting their info
-    # and searching for them
-    {:struct, struct_info} = :erlang.apply(module, :struct_info, [struct_name])
-    state = Enum.reduce(struct_info, state, fn({_idx, info}, state) ->
-                          append_struct(state, info)
-                          end)
-    State.append_struct(state, [:struct, info])
-  end
-
-  defp append_struct(state=%State{}, _) do
-    state
-  end
-
-  defp find_structs_in_list(state=%State{}, param_meta) when is_list(param_meta) do
-    Enum.reduce(param_meta, state,
-      fn({_order, param_type}, state) ->
-        append_struct(state, param_type) end)
-  end
-
-  defp find_reply_structs(state=%State{}, reply_meta) do
-    case reply_meta do
-      {:struct, _struct_info} -> append_struct(state, reply_meta)
-      _ -> state
-    end
-  end
-
-  def build_arg_list(size) when is_integer(size) do
-    case size do
-     0 -> []
-     size ->
-    Enum.map(0..size - 1, fn(param_idx) ->
-               "arg_#{param_idx + 1}"
-               |> String.to_atom
-               |> Macro.var(nil)
-             end)
-    end
-  end
-
-  defp build_handler_tuple_args(param_meta) do
-    args =  param_meta |> length |> build_arg_list
-    {:{}, [], args}
-  end
-
-  defp build_arg_cast(struct_module, name) do
-    var = Macro.var(name, nil)
-    quote do
-      unquote(var) = unquote(struct_module).to_elixir(unquote(var))
-    end
-  end
-
   def build_delegate_call(delegate_fn) do
     delegate_info = :erlang.fun_info(delegate_fn)
 
@@ -153,25 +83,15 @@ defmodule Rift.Server do
                 [delegate_info[:module]]}, delegate_info[:name]]}, [], arg_list}
   end
 
-  defp build_handler(state=%State{}, struct_module, thrift_module, thrift_fn_name, delegate_fn) do
-    {:struct, param_meta} = thrift_module.function_info(thrift_fn_name, :params_type)
-    reply_meta = thrift_module.function_info(thrift_fn_name, :reply_type)
-    {:struct, exception_meta} = thrift_module.function_info(thrift_fn_name, :exceptions)
+  defp build_handler(meta=%Meta{}, struct_module, thrift_module, thrift_fn_name, delegate_fn) do
 
-    state = state
-    |> find_structs_in_list(param_meta)
-    |> find_structs_in_list(exception_meta)
-    |> find_reply_structs(reply_meta)
-
-    tuple_args = build_handler_tuple_args(param_meta)
+    function_meta = Meta.metadata_for_function(meta, thrift_fn_name)
+    params_meta = function_meta[:params]
+    tuple_args = build_handler_tuple_args(params_meta)
     delegate_call = build_delegate_call(delegate_fn)
-    casts = param_meta
-    |> Enum.with_index
-    |> Enum.map(fn({_param_meta, idx}) ->
-                  build_arg_cast(struct_module, String.to_atom("arg_#{idx + 1}"))
-                end)
+    casts = build_casts(struct_module, params_meta, :to_elixir)
 
-    handler = quote do
+    quote do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
         unquote_splicing(casts)
         rsp = unquote(delegate_call)
@@ -179,38 +99,29 @@ defmodule Rift.Server do
         reply
       end
     end
-    State.append_handler(state, handler)
   end
 
-  defp reconstitute_callbacks(module) do
-    module
-    |> Module.get_attribute(:callbacks)
-    |> Enum.map(
-        fn(cb) ->
-          quote do
-            callback(unquote(cb.name), unquote(cb.guard)) do
-              unquote(cb.body)
-            end
-          end
-        end)
-  end
+
 
   defmacro __before_compile__(env) do
     functions = Module.get_attribute(env.module, :functions)
     struct_module = Module.get_attribute(env.module, :struct_module)
     thrift_module = Module.get_attribute(env.module, :thrift_module)
+
+    function_names = Enum.map(functions, fn({name, _}) -> name end)
+    thrift_meta = ThriftMeta.extract(thrift_module, function_names)
     {server, server_opts}= Module.get_attribute(env.module, :server)
 
-    state = Enum.reduce(functions, %State{},
-      fn({fn_name, delegate}, state) ->
-        build_handler(state, struct_module, thrift_module, fn_name, delegate) end)
+    handlers = Enum.map(functions,
+      fn({fn_name, delegate}) ->
+        build_handler(thrift_meta, struct_module, thrift_module, fn_name, delegate) end)
 
-    structs_keyword = State.structs_to_keyword(state)
+    structs_keyword = ThriftMeta.Meta.structs_to_keyword(thrift_meta)
 
     quote  do
       defmodule unquote(struct_module) do
         use Rift.Struct, unquote(structs_keyword)
-        unquote_splicing(reconstitute_callbacks(env.module))
+        unquote_splicing(Rift.Callbacks.reconstitute(env.module))
       end
 
       def start_link do
@@ -222,7 +133,7 @@ defmodule Rift.Server do
         {:ok, server_pid}
       end
 
-      unquote_splicing(state.handlers)
+      unquote_splicing(handlers)
 
       def handle_function(name, args) do
         raise "Handler #{inspect(name)} #{inspect(args)} Not Implemented"

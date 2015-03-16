@@ -58,8 +58,7 @@ defmodule Rift.Struct do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
 
     quote do
-      require Rift.Callbacks
-      import Rift.Callbacks, only: [callback: 3]
+      use Rift.Callbacks
       require Rift.Struct
       import Rift.Struct
 
@@ -91,8 +90,8 @@ defmodule Rift.Struct do
     record_name = downcase_first(struct_module_name)
     record_file = "src/#{thrift_module}.hrl"
 
-    tuple_to_elixir = build_tuple_to_elixir(container_module, struct_module_name, fq_module_name, meta)
-    struct_to_erlang = build_struct_to_erlang(fq_module_name, meta, record_name, struct_module_name)
+    tuple_to_elixir = build_tuple_to_elixir(container_module, fq_module_name, meta, struct_module_name)
+    struct_to_erlang = build_struct_to_erlang(container_module, fq_module_name, meta, struct_module_name, record_name)
 
     struct_module = quote do
       defmodule unquote(fq_module_name) do
@@ -112,31 +111,42 @@ defmodule Rift.Struct do
     StructData.append(struct_data, struct_module, tuple_to_elixir, struct_to_erlang)
   end
 
-  defp build_tuple_to_elixir(container_module, thrift_name, module_name, meta) do
+  defp build_tuple_to_elixir(container_module, module_name, meta, thrift_name) do
     # Builds a conversion function that take a tuple and converts it into an Elixir struct
 
     pos_args = [thrift_name] ++ Enum.map(meta, fn({_, _, _, name, _}) ->
                                            Macro.var(name, module_name) end)
     pos_args = {:{}, [], pos_args}
+
     keyword_args = Enum.map(
-      meta, fn({_,_,_,name,_}) ->
-        {name, {{:., [], [{:__aliases__, [], [container_module]}, :to_elixir]},
-                [], [Macro.var(name, module_name)]}} end)
+      meta, fn({_ ,_ ,type ,name ,_}) ->
+        # the meta format is {index, :undefined, type, name, :undefined}
+        var = Macro.var(name, module_name)
+        quote do
+          {unquote(name), unquote(container_module).to_elixir(unquote(type), unquote(var))}
+        end
+        end)
 
     quote do
       def to_elixir(unquote(pos_args)) do
         unquote(module_name).new(unquote(keyword_args)) |> after_to_elixir
       end
-
     end
   end
 
+  defp build_struct_to_erlang(dest_module, struct_module, meta, record_name, record_fn_name) do
+    # Builds a conversion function that turns an Elixir struct into an erlang record
+    # The output is quote:
 
-  defp build_struct_to_erlang(struct_module, meta, record_fn_name, record_name) do
-    #  Builds a conversion function that turns an Elixir struct into an erlang record
+    kwargs = Enum.map(meta, fn(m={_, _, type, name, _}) ->
+                        # The meta format is {index, :undefined, type, name, :undefined}
+                        field_variable = Macro.var(name, struct_module)
+                        quote do
+                          {unquote(name), unquote(dest_module).to_erlang(unquote(type), s.unquote(field_variable)())}
+                        end
 
-    kwargs = Enum.map(meta, fn({_, _, _, name, _}) ->
-                        {name, {{:., [], [{:s, [], Rift.Struct}, name]}, [], []}} end)
+                       end)
+
     quote do
       def to_erlang(s=%unquote(struct_module){}) do
         require unquote(struct_module)
@@ -166,6 +176,14 @@ defmodule Rift.Struct do
       unquote_splicing(struct_data.struct_modules)
       unquote_splicing(struct_data.tuple_converters)
 
+      def to_elixir(:string, char_list) when is_list(char_list) do
+        List.to_string(char_list)
+      end
+
+      def to_elixir(_, whatever) do
+        to_elixir(whatever)
+      end
+
       def to_elixir({k, v}) do
         {to_elixir(k), to_elixir(v)}
       end
@@ -179,6 +197,9 @@ defmodule Rift.Struct do
             Enum.into(:sets.to_list(t), HashSet.new, &to_elixir/1)
           _ ->
             t
+            |> Tuple.to_list
+            |> Enum.map(&to_elixir/1)
+            |> List.to_tuple
         end
       end
 
@@ -191,6 +212,14 @@ defmodule Rift.Struct do
       end
 
       unquote_splicing(struct_data.struct_converters)
+
+      def to_erlang(:string, bitstring) when is_bitstring(bitstring) do
+        String.to_char_list(bitstring)
+      end
+
+      def to_erlang(_, whatever) do
+        to_erlang(whatever)
+      end
 
       def to_erlang({k, v}) do
         {to_erlang(k), to_erlang(v)}

@@ -13,14 +13,13 @@ defmodule Rift.Callbacks do
     def new(name, guard, body) do
       %Callback{name: name, guard: guard, body: body}
     end
-
   end
 
   defmacro __using__(opts) do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
     quote do
       require Rift.Callbacks
-      import Rift.Callbacks
+      import Rift.Callbacks, only: [callback: 3]
     end
   end
 
@@ -29,7 +28,21 @@ defmodule Rift.Callbacks do
     Module.put_attribute(__CALLER__.module, :callbacks, callback)
   end
 
-  def build(module) do
+  def reconstitute(module) do
+    module
+    |> Module.get_attribute(:callbacks)
+    |> Enum.map(&reconstitute_callback/1)
+  end
+
+  defp reconstitute_callback(callback=%Rift.Callbacks.Callback{}) do
+    quote do
+      callback(unquote(callback.name), unquote(callback.guard)) do
+        unquote(callback.body)
+      end
+    end
+  end
+
+  def build(module, filter \\ fn(callback) -> true end) do
     defined_callbacks = module
     |> Module.get_attribute(:callbacks)
     |> Enum.map(fn(callback) ->

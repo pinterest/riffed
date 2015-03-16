@@ -91,7 +91,7 @@ defmodule ServerTest do
 
     {:reply, response} = Server.handle_function(:config, {request, 1000})
 
-    expected_user = Data.User.new(firstName: 'Steve', lastName: 'Cohen')
+    expected_user = Data.User.new(firstName: "Steve", lastName: "Cohen")
     expected_request = Data.ConfigRequest.new(template: "users/:me",
                                               requestCount: 1000,
                                               user: expected_user)
@@ -99,7 +99,7 @@ defmodule ServerTest do
     {request, timestamp} = FakeHandler.args
     assert expected_request == request
     assert 1000 == timestamp
-    assert {:ConfigResponse, "users/:me", 1000, 1} == response
+    assert {:ConfigResponse, 'users/:me', 1000, 1} == response
   end
 
   test "dicts are properly converted" do
@@ -116,7 +116,7 @@ defmodule ServerTest do
   end
 
   test "dicts with structs are converted" do
-    user_dict = :dict.from_list([{'steve', {:User, "Steve", "Cohen"}}])
+    user_dict = :dict.from_list([{'steve', {:User, 'Steve', 'Cohen'}}])
 
     {:reply, response} = Server.handle_function(:dictUserFun, {user_dict})
 
@@ -127,14 +127,14 @@ defmodule ServerTest do
 
   test "sets of structs are converted" do
     user = Data.User.new(firstName: "Steve", lastName: "Cohen")
-    param = :sets.from_list([{:User, "Steve", "Cohen"}])
+    param = :sets.from_list([{:User, 'Steve', 'Cohen'}])
 
     {:reply, response} = Server.handle_function(:setUserFun, {param})
 
     set_arg = FakeHandler.args
 
     assert HashSet.to_list(set_arg) == [user]
-    assert :sets.from_list([{:User, "Steve", "Cohen"}]) == response
+    assert :sets.from_list([{:User, 'Steve', 'Cohen'}]) == response
   end
 
 
@@ -159,7 +159,7 @@ defmodule ServerTest do
   end
 
   test "lists of structs are properly converted" do
-    user_list = [{:User, "Steve", "Cohen"}]
+    user_list = [{:User, 'Steve', 'Cohen'}]
 
     {:reply, response} = Server.handle_function(:listUserFun, {user_list})
 
