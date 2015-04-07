@@ -180,7 +180,7 @@ defmodule ClientTest do
     assert response == Models.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN")
   end
 
-  test_with_mock "it should user callbacks to convert things to erlang", :thrift_client,
+  test_with_mock "it should use callbacks to convert things to erlang", :thrift_client,
   [call: &EchoServer.call/3] do
 
     response = Client.setLoudUser(Models.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN"))
