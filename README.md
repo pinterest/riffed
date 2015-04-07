@@ -216,7 +216,7 @@ The `enumerize_function` macro allows you to mark function arguments and return 
 Similarly, the function `getCreatedDay` will have its argument left alone and its return value converted into a DayOfTheWeek enumeration
    
 ##### Using enumerations in code
-Enumerations are maps whose modules support converting between the map and integer representation. This shows how to convert integers to enumerations and vice-versa
+Enumerations are elixir structs whose modules support converting between the struct and integer representation. This shows how to convert integers to enumerations and vice-versa
 
 ```elixir
     x = DayOfWeek.monday
