@@ -108,7 +108,11 @@ defmodule ThriftHandlers do
 
   def get_state(username) do
      user = Models.User.fetch(username)
-     Data.UserState.new(user: user, state: :active)
+     case user.state do
+        :active -> Data.UserState.active
+  	    :banned -> Data.UserState.banned
+  	    _ -> Data.UserState.inactive
+  	  end
   end
   
   def set_state(user=%Data.User{}, state=%Data.UserState{}) do
@@ -118,13 +122,13 @@ defmodule ThriftHandlers do
 end
 ```
 
-The server is doing a bunch of work for you. It's investigating your thrift files and figuring out which structs need to be imported by looking at the parameters, exceptions and return values. It then makes a module that imports your structs (`Data` in this case) and builds code for the thrift server that takes an incoming thrift request, converts its parameters into Elixir representations and then calls your handler. Notice how the handlers in ThriftHandlers take structs as arguments and return structs. That's what Rift gets you.
+`Rift.Server` is doing a bunch of work for you. It's investigating your thrift files and figuring out which structs need to be imported by looking at the parameters, exceptions and return values. It then makes a module that imports your structs (`Data` in this case) and builds code for the thrift server that takes an incoming thrift request, converts its parameters into Elixir representations and then calls your handler. Notice how the handlers in ThriftHandlers take structs as arguments and return structs. That's what Rift gets you.
 
 These handler functions also process the values your code returns and hands them back to thrift.
 
 The above example also shows how to handle Thrift enums.  Due to the way thrift enums are handled by the erlang generator, there's no way for Rift to convert them into a friendly structure for you, so they need to be defined and pointed out to Rift. 
 
-The server is configured in the server block. The first element of the tuple is the module of the server you wish to instantiate. The second element is a Keyword list of configuration options for the server. You cannot set the :name, :handler or :service params. The name and handler are set to the current module. The service is given as the thrift_module option.
+The thrift server is configured in the server block. The first element of the tuple is the module of the server you wish to instantiate. In this case, we're using `thrift_socket_server`. The second element is a Keyword list of configuration options for the server. You cannot set the :name, :handler or :service params. The name and handler are set to the current module. The service is given as the thrift_module option.
 
 
 ## Generating a client with `Rift.Client`
@@ -139,7 +143,18 @@ Assuming the same configuration above, the following block will generate a clien
          structs: Models,
          client_opts: [host: "localhost", port: 1234, framed: true],
          service: :pinterest_thrift, 
-         import [:register, :isRegistered, :getState]
+         import [:register, 
+                 :isRegistered, 
+                 :getState]
+         
+         defenum UserState do
+           :active -> 1
+           :inactive -> 2
+           :banned -> 3
+         end
+         
+         enumerize_struct User, :state -> UserState
+         enumerize_function getState(_), returns: UserState
      end
 ```
      
@@ -156,6 +171,8 @@ You can then issue calls against the client:
      > %Models.User{firstName: "Stinky", lastName: "Stinkman")
      is_registered = RegisterClient.isRegistered(user)
      > true
+     state = RegisterClient.getState(user)
+     > %Models.UserState{ordinal: :active, value: 1}
 ```
      
 Clients support the same callbacks and enumeration transformations that the server suports, and they're configured identically.
