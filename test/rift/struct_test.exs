@@ -4,24 +4,13 @@ defmodule StructTest do
   defmodule Structs do
     use Rift.Struct, struct_types: [:Inner, :Nested, :NeedsFixup]
 
-    callback(:after_to_elixir, src=%NeedsFixup{}) do
-      period = case src.time do
-                 1 -> :day
-                 2 -> :week
-                 3 -> :month
-               end
-      %NeedsFixup{src | time: period}
+    defenum Time do
+      :day -> 1
+      :week -> 2
+      :month -> 3
     end
 
-    callback(:after_to_erlang, {:NeedsFixup, name, time}) do
-      time = case time do
-               :day -> 1
-               :week -> 2
-               :month -> 3
-             end
-      {:NeedsFixup, name, time}
-    end
-
+    enumerize_struct NeedsFixup, time: Time
   end
 
   setup do
@@ -87,12 +76,12 @@ defmodule StructTest do
 
   test "The callback function is called when converting to elixir" do
     actual = {:NeedsFixup, "Foo", 2} |> Structs.to_elixir
-    assert actual.time == :week
+    assert actual.time == Structs.Time.week
   end
 
   test "The callback function is called when converting to erlang" do
-    actual = Structs.NeedsFixup.new(name: "My Name", time: :week) |> Structs.to_erlang
-    assert 2 == elem(actual, 2)
+    {:NeedsFixup, 'My Name', thrift_value} = Structs.NeedsFixup.new(name: "My Name", time: Structs.Time.week) |> Structs.to_erlang
+    assert Structs.Time.week.value == thrift_value
   end
 
 end

@@ -61,6 +61,7 @@ defmodule Rift.Server do
   defmacro __using__(opts) do
     quote do
       use Rift.Callbacks
+      use Rift.Enumeration
 
       require Rift.Server
       require Rift.Struct
@@ -83,25 +84,30 @@ defmodule Rift.Server do
                 [delegate_info[:module]]}, delegate_info[:name]]}, [], arg_list}
   end
 
-  defp build_handler(meta=%Meta{}, struct_module, thrift_module, thrift_fn_name, delegate_fn) do
+  defp build_handler(meta=%Meta{}, struct_module, server_module, thrift_fn_name, delegate_fn) do
 
     function_meta = Meta.metadata_for_function(meta, thrift_fn_name)
     params_meta = function_meta[:params]
     tuple_args = build_handler_tuple_args(params_meta)
     delegate_call = build_delegate_call(delegate_fn)
     casts = build_casts(struct_module, params_meta, :to_elixir)
+    enum_casts = Rift.Enumeration.build_function_casts(server_module,
+                                                       struct_module,
+                                                       thrift_fn_name,
+                                                       :to_elixir)
 
     quote do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
         unquote_splicing(casts)
+        unquote_splicing(enum_casts)
         rsp = unquote(delegate_call)
-        reply = {:reply, unquote(struct_module).to_erlang(rsp)}
-        reply
+        |> unquote(struct_module).to_erlang
+        |> cast_return_value_to_erlang(unquote(thrift_fn_name))
+
+        {:reply, unquote(struct_module).to_erlang(rsp)}
       end
     end
   end
-
-
 
   defmacro __before_compile__(env) do
     functions = Module.get_attribute(env.module, :functions)
@@ -114,7 +120,7 @@ defmodule Rift.Server do
 
     handlers = Enum.map(functions,
       fn({fn_name, delegate}) ->
-        build_handler(thrift_meta, struct_module, thrift_module, fn_name, delegate) end)
+        build_handler(thrift_meta, struct_module, env.module, fn_name, delegate) end)
 
     structs_keyword = ThriftMeta.Meta.structs_to_keyword(thrift_meta)
 
@@ -122,6 +128,7 @@ defmodule Rift.Server do
       defmodule unquote(struct_module) do
         use Rift.Struct, unquote(structs_keyword)
         unquote_splicing(Rift.Callbacks.reconstitute(env.module))
+        unquote_splicing(Rift.Enumeration.reconstitute(env.module))
       end
 
       def start_link do
@@ -133,6 +140,11 @@ defmodule Rift.Server do
         {:ok, server_pid}
       end
 
+      unquote(Rift.Callbacks.default_to_erlang)
+      unquote(Rift.Callbacks.default_to_elixir)
+
+      unquote_splicing(Rift.Enumeration.build_cast_return_value_to_erlang(struct_module, env.module))
+      unquote(Rift.Enumeration.generate_default_casts)
       unquote_splicing(handlers)
 
       def handle_function(name, args) do

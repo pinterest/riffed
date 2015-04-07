@@ -7,34 +7,48 @@ defmodule ClientTest do
     client_opts: [host: "localhost",
                   port: 2112,
                   framed: true,
+                  retries: 1,
                   socket_opts: [
                           recv_timeout: 3000,
                           keepalive: true]
-                  ],
+                 ],
     service: :server_thrift,
     import: [:config,
+             :setUserState,
              :dictFun,
              :dictUserFun,
              :setUserFun,
-             :getState
+             :getState,
+             :getTranslatedState,
+             :getLoudUser,
+             :setLoudUser,
+             :echoState
             ]
 
-    callback(:after_to_elixir, user_state=%UserState{}) do
-      new_status = case user_state.status do
-                     1 -> :active
-                     2 -> :inactive
-                     3 -> :banned
-                   end
-      %Models.UserState{user_state | status: new_status}
+    defenum ActivityState do
+      :active -> 1
+      :inactive -> 2
+      :banned -> 3
     end
 
-    callback(:after_to_erlang, user_status={:UserState, user, status}) do
-      new_status = case status do
-                     :active -> 1
-                     :inactive -> 2
-                     :banned -> 3
-                   end
-      {:UserState, user, new_status}
+    enumerize_function setUserState(_, ActivityState)
+    enumerize_function getTranslatedState(_), returns: ActivityState
+    enumerize_function echoState(ActivityState), returns: ActivityState
+
+    enumerize_struct User, state: ActivityState
+
+    callback(:after_to_elixir, user=%LoudUser{}) do
+
+      %Models.LoudUser{user |
+                       firstName: String.upcase(user.firstName),
+                       lastName: String.upcase(user.lastName)}
+    end
+
+    callback(:after_to_erlang, {:LoudUser, first_name, last_name}) do
+      downcase = fn(l) ->
+        l |> List.to_string |> String.downcase |> String.to_char_list
+      end
+      {:LoudUser, downcase.(first_name), downcase.(last_name)}
     end
   end
 
@@ -53,13 +67,22 @@ defmodule ClientTest do
       GenServer.call(__MODULE__, :get_last_args)
     end
 
-    def handle_call(req={call_name, args}, _parent, _state) do
+    def set_args(args) do
+      GenServer.call(__MODULE__, {:set_args, args})
+    end
+
+    def handle_call({:set_args, args}, _parent, _state) do
+      {:reply, args, args}
+    end
+
+    def handle_call(req={_call_name, args}, _parent, _state) do
       {:reply, {nil, {:ok, args}}, req}
     end
 
     def handle_call(:get_last_args, _parent, state) do
       {:reply, state, state}
     end
+
 
   end
 
@@ -71,7 +94,9 @@ defmodule ClientTest do
   end
 
   def user_struct do
-    Models.User.new(firstName: "Foobie", lastName: "Barson")
+    Models.User.new(firstName: "Foobie",
+                    lastName: "Barson",
+                    state: Models.ActivityState.active)
   end
 
   def config_request_struct do
@@ -83,7 +108,7 @@ defmodule ClientTest do
 
   test "it should convert nested structs into erlang" do
     converted = Models.to_erlang(config_request_struct)
-    assert {:ConfigRequest, 'foo/bar', 32, {:User, 'Foobie', 'Barson'}} == converted
+    assert {:ConfigRequest, 'foo/bar', 32, {:User, 'Foobie', 'Barson', 1}} == converted
   end
 
   test_with_mock "it should convert structs into their correct types", :thrift_client,
@@ -92,9 +117,8 @@ defmodule ClientTest do
 
     assert config_request_struct == request
     assert 3 == num
-    assert {:config, [{:ConfigRequest, 'foo/bar', 32, {:User, 'Foobie', 'Barson'}}, 3]} == EchoServer.last_call
+    assert {:config, [{:ConfigRequest, 'foo/bar', 32, {:User, 'Foobie', 'Barson', 1}}, 3]} == EchoServer.last_call
   end
-
 
   test_with_mock "it should convert structs in dicts", :thrift_client,
   [call: &EchoServer.call/3] do
@@ -103,7 +127,7 @@ defmodule ClientTest do
     [response] = Client.dictUserFun(dict_arg)
 
     assert dict_arg == response
-    expected = {:dictUserFun, [:dict.from_list([{"foobar", {:User, 'Foobie', 'Barson'}}])]}
+    expected = {:dictUserFun, [:dict.from_list([{"foobar", {:User, 'Foobie', 'Barson', 1}}])]}
     assert expected == EchoServer.last_call
   end
 
@@ -116,20 +140,53 @@ defmodule ClientTest do
     assert set_arg == response
     {call_name, [set_arg]} = EchoServer.last_call
     assert call_name == :setUserFun
-    assert set_arg == :sets.from_list([{:User, 'Foobie', 'Barson'}])
+    assert set_arg == :sets.from_list([{:User, 'Foobie', 'Barson', 1}])
   end
 
-  test_with_mock "it should have callbacks that work", :thrift_client,
+  test_with_mock "it should convert enums in args", :thrift_client,
   [call: &EchoServer.call/3] do
-    user_status = Models.UserState.new(user: user_struct, status: :active)
+    user_state = Models.ActivityState.inactive
 
-   [response] = Client.getState(user_status)
-   assert response.status == :active
-   {call_name, [state]} = EchoServer.last_call
+    [response] = Client.getState(user_state)
+    assert response == Models.ActivityState.inactive
 
-   assert call_name == :getState
-   {:UserState, user, status} = state
-   assert status == 1
+    {call_name, [state]} = EchoServer.last_call
+
+    assert call_name == :getState
+    Models.ActivityState.inactive == state
   end
 
+  test_with_mock "it should convert enums returned by client functions", :thrift_client,
+  [call: fn(client, _, _) -> {client, {:ok, 3}} end] do
+    response = Client.getTranslatedState(3)
+    assert response == Models.ActivityState.banned
+  end
+
+  test_with_mock "it shold convert enums in args and return values", :thrift_client,
+  [call: fn(client, _name, args) ->
+     EchoServer.set_args(args)
+     {client, {:ok, 3}}
+   end] do
+
+    response = Client.echoState(Models.ActivityState.active)
+    assert response == Models.ActivityState.banned
+    [last_call] = EchoServer.last_call
+    assert Models.ActivityState.active.value == last_call
+  end
+
+  test_with_mock "it should use callbacks to convert things to elixir", :thrift_client,
+  [call: fn(client, _, _) -> {client, {:ok, {:LoudUser, 'stinky', 'stinkman'}}} end] do
+    response = Client.getLoudUser()
+    assert response == Models.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN")
+  end
+
+  test_with_mock "it should user callbacks to convert things to erlang", :thrift_client,
+  [call: &EchoServer.call/3] do
+
+    response = Client.setLoudUser(Models.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN"))
+    {call_name, [user_tuple]} = EchoServer.last_call
+
+    assert call_name == :setLoudUser
+    assert {:LoudUser, 'stinky', 'stinkman'} == user_tuple
+  end
 end

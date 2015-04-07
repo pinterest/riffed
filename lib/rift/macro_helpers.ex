@@ -18,7 +18,7 @@ defmodule Rift.MacroHelpers do
   end
 
   def build_casts(struct_module, params_meta, cast_function) do
-    casts = params_meta
+    params_meta
     |> Enum.with_index
     |> Enum.map(fn({_param_meta, idx}) ->
                   build_arg_cast(struct_module, String.to_atom("arg_#{idx + 1}"), cast_function)

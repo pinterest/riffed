@@ -52,13 +52,12 @@ defmodule Rift.Struct do
     end
   end
 
-
-
   defmacro __using__(opts) do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
 
     quote do
       use Rift.Callbacks
+      use Rift.Enumeration
       require Rift.Struct
       import Rift.Struct
 
@@ -66,6 +65,7 @@ defmodule Rift.Struct do
       @before_compile Rift.Struct
     end
   end
+
 
   defp build_struct_args(struct_meta) do
     Enum.map(struct_meta, fn({_, _, _, name, _}) -> {name, :undefined} end)
@@ -125,10 +125,19 @@ defmodule Rift.Struct do
         quote do
           {unquote(name), unquote(container_module).to_elixir(unquote(type), unquote(var))}
         end
-        end)
+      end)
+
+    enum_conversions = Enum.map(
+      meta, fn({_, _, _type, name, _}) ->
+        var = Macro.var(name, module_name)
+        quote do
+          unquote(var) = convert_to_enum(unquote(thrift_name), unquote(name), unquote(var))
+        end
+      end)
 
     quote do
       def to_elixir(unquote(pos_args)) do
+        unquote_splicing(enum_conversions)
         unquote(module_name).new(unquote(keyword_args)) |> after_to_elixir
       end
     end
@@ -138,7 +147,7 @@ defmodule Rift.Struct do
     # Builds a conversion function that turns an Elixir struct into an erlang record
     # The output is quote:
 
-    kwargs = Enum.map(meta, fn(m={_, _, type, name, _}) ->
+    kwargs = Enum.map(meta, fn({_, _, type, name, _}) ->
                         # The meta format is {index, :undefined, type, name, :undefined}
                         field_variable = Macro.var(name, struct_module)
                         quote do
@@ -150,12 +159,14 @@ defmodule Rift.Struct do
     quote do
       def to_erlang(s=%unquote(struct_module){}) do
         require unquote(struct_module)
+        s = convert_enums_to_erlang(s)
         unquote(struct_module).unquote(record_fn_name)(unquote(kwargs))
         |> put_elem(0, unquote(record_name))
         |> after_to_erlang
       end
     end
   end
+
 
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :thrift_options)
@@ -171,83 +182,22 @@ defmodule Rift.Struct do
       end)
 
     callbacks = Rift.Callbacks.build(env.module)
+    enums = Rift.Enumeration.build(env.module)
 
     quote do
       unquote_splicing(struct_data.struct_modules)
       unquote_splicing(struct_data.tuple_converters)
+      unquote_splicing(enums.modules)
 
-      def to_elixir(:string, char_list) when is_list(char_list) do
-        List.to_string(char_list)
-      end
 
-      def to_elixir(_, whatever) do
-        to_elixir(whatever)
-      end
-
-      def to_elixir({k, v}) do
-        {to_elixir(k), to_elixir(v)}
-      end
-
-      def to_elixir(t) when is_tuple(t) do
-        first = elem(t, 0)
-        case first do
-          :dict ->
-            Enum.into(:dict.to_list(t), HashDict.new, &to_elixir/1)
-          :set ->
-            Enum.into(:sets.to_list(t), HashSet.new, &to_elixir/1)
-          _ ->
-            t
-            |> Tuple.to_list
-            |> Enum.map(&to_elixir/1)
-            |> List.to_tuple
-        end
-      end
-
-      def to_elixir(l) when is_list(l) do
-        Enum.map(l, &to_elixir(&1))
-      end
-
-      def to_elixir(x) do
-        x
-      end
+      unquote(Rift.Callbacks.default_to_elixir)
 
       unquote_splicing(struct_data.struct_converters)
 
-      def to_erlang(:string, bitstring) when is_bitstring(bitstring) do
-        String.to_char_list(bitstring)
-      end
-
-      def to_erlang(_, whatever) do
-        to_erlang(whatever)
-      end
-
-      def to_erlang({k, v}) do
-        {to_erlang(k), to_erlang(v)}
-      end
-
-      def to_erlang(l) when is_list(l) do
-        Enum.map(l, &to_erlang(&1))
-      end
-
-      def to_erlang(d=%HashDict{}) do
-        d
-        |> Dict.to_list
-        |> Enum.map(&to_erlang/1)
-        |> :dict.from_list
-      end
-
-      def to_erlang(hs=%HashSet{}) do
-        hs
-        |> Set.to_list
-        |> Enum.map(&to_erlang/1)
-        |> :sets.from_list
-      end
-
-      def to_erlang(x) do
-        x
-      end
-
+      unquote(Rift.Callbacks.default_to_erlang)
+      unquote_splicing(enums.conversion_fns)
       unquote(callbacks)
+
     end
   end
 

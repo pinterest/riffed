@@ -1,14 +1,13 @@
 
 # Rift
+### Healing the rift between Elixir and Thrift.
 
-#### Healing the rift between Elixir and Thrift.
+Thrift's erlang implementation isn't very pleasant to use in Elixir. It prefers records to struenumerize_structcts, littering your code with tuples. It swalllows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Rift fixes this.
 
-Thrift's erlang implementation isn't very pleasant to use in Elixir. It prefers records to maps, making pattern matching difficult. Rift fixes this.
-
-Rift Provides two modules, `Rift.Struct` and `Rift.Server` which will help you manage this impedence mismatch.
+Rift Provides three modules, `Rift.Struct`, `Rift.Client`, and `Rift.Server` which will help you manage this impedence mismatch.
 
 
-## Elixir style structs with `Rift.Struct`
+## Elixir-style structs with `Rift.Struct`
 
 `Rift.Struct` provides functionality for converting Thrift types into Elixir structs.
 
@@ -34,7 +33,7 @@ Structs.to_elixir(user_tuple)
 
 ```
 
-...but you'll rarely use the Struct module alone. Instead, you'll use the `Rift.Client` or `Rift.Server` modules.
+...but you'll rarely use the Struct module directly. Instead, you'll use the `Rift.Client` or `Rift.Server` modules.
 
 
 ## Generating Servers with `Rift.Server`
@@ -52,17 +51,14 @@ struct User {
   1: string username,
   2: string firstName,
   3: string lastName;
-}
-
-struct UserAndState {
-  1: User user,
-  2: UserState state;
+  4: UserState state;
 }
 
 service PinterestRegister {
   User register(1: string firstName, 2: string lastName);
   bool isRegistered(1: User user);
-  UserAndState getState(1: string username);
+  UserState getState(1: string username);
+  void setState(1: User user, 2: UserState state);
 }
 ```
 
@@ -75,7 +71,8 @@ defmodule Server do
     structs: Data,
     functions: [register: &ThriftHandlers.register/3,
                 isRegistered: &ThriftHandlers.is_registered/1,
-                getState: &ThriftHandlers.get_state/1
+                getState: &ThriftHandlers.get_state/1,
+                setState: &ThriftHandlers.set_state/2
     ],
 
     server: {:thrift_socket_server,
@@ -86,29 +83,20 @@ defmodule Server do
                      recv_timeout: 3000,
                      keepalive: true]
             }
-  end
+  
+	defenum UserState do
+	  :active -> 1
+	  :inactive -> 2
+	  :banned -> 3
+	end
+  
+    enumerize_struct User, state: UserState
+    enumerize_function setUserState(_, UserState)
+    enumerize_function getState(_), returns: UserState
+end
 
 defmodule ThriftHandlers do
-  callback(:after_to_elixir, us=%Data.UserState{}) do
-    state_atom = case us.state do
-      1 -> :active
-      2 -> :inactive
-      3 -> :banned
-      other -> other
-    end
-    %Data.UserState{us | state: state_atom}
-  end
-
-  callback(:after_to_erlang, {:UserAndstate, user, state}) do
-    state_int = case state do
-      :active -> 1
-      :inactive -> 2
-      :banned -> 3
-      other -> other
-    end
-    {:UserAndState, user, state_int}
-  end
-
+  
   def register(username, first_name, last_name) do
      # registration logic. Return a new user
      Data.User.new(username: username, firstName: "Stinky", lastName: "Stinkman")
@@ -122,6 +110,10 @@ defmodule ThriftHandlers do
      user = Models.User.fetch(username)
      Data.UserState.new(user: user, state: :active)
   end
+  
+  def set_state(user=%Data.User{}, state=%Data.UserState{}) do
+	  ...
+  end
 
 end
 ```
@@ -130,7 +122,7 @@ The server is doing a bunch of work for you. It's investigating your thrift file
 
 These handler functions also process the values your code returns and hands them back to thrift.
 
-The above also features some callbacks that massage data to be more Elixir friendly. Due to the way thrift enums are handled by the erlang generator, there's no way for Rift to convert them into a friendly structure for you, so they need to be handled manually. The callbacks above demonstrate converting from ints to atoms. The callbacks allow pattern matching and will be invoked whenever a tuple is converted into an Elixir struct or an Elixir struct is converted into a tuple.
+The above example also shows how to handle Thrift enums.  Due to the way thrift enums are handled by the erlang generator, there's no way for Rift to convert them into a friendly structure for you, so they need to be defined and pointed out to Rift. 
 
 The server is configured in the server block. The first element of the tuple is the module of the server you wish to instantiate. The second element is a Keyword list of configuration options for the server. You cannot set the :name, :handler or :service params. The name and handler are set to the current module. The service is given as the thrift_module option.
 
@@ -141,22 +133,108 @@ Generating a client is similarly simple. `Rift.Client` just asks that you point 
 
 Assuming the same configuration above, the following block will generate a client:
 
+```elixir
      defmodule RegisterClient do
-       use Rift.Client, structs: Models,
+       use Rift.Client, 
+         structs: Models,
          client_opts: [host: "localhost", port: 1234, framed: true],
          service: :pinterest_thrift, 
          import [:register, :isRegistered, :getState]
      end
+```
      
 You start the client by calling start_link: 
-     
+
+```elixir     
      RegisterClient.start_link 
+```
      
 You can then issue calls against the client:
     
+```elixir    
      user = RegisterClient.register("Stinky", "Stinkman")
      > %Models.User{firstName: "Stinky", lastName: "Stinkman")
      is_registered = RegisterClient.isRegistered(user)
      > true
+```
      
-Clients support the same callbacks that the server suports. 
+Clients support the same callbacks and enumeration transformations that the server suports, and they're configured identically.
+
+
+## Handling Thrift Enumerations
+
+Unfortunately, enumeration support in Erlang thrift code is lossy and because of this Rift can't tell where the enumerations you worked so tirelessly to define appear in the generated code. Because of this, you have to re-define them and tell Rift where they are; otherwise, all you'll see are integers. 
+
+To do this, Rift supports a syntax to re-define enumerations, and this syntax is available when you use `Rift.Server` and `Rift.Client`.
+
+The following examples assume these RPC calls and enumeration:
+
+```thrift    
+    enum DayOfTheWeek {
+    	SUNDAY,
+    	MONDAY,
+    	TUESDAY,
+    	WEDNESDAY,
+    	THURSDAY,
+    	FRIDAY
+    }
+
+    void setCreatedDay(1: User user, 2: DayOfTheWeek day)
+    DayOfTheWeek getCreatedDay(1: User user);
+```
+
+First off, you'll need to re-define your enumeration. To do that, use the defenum macro inside of your `Rift.Server` or `Rift.Client` module:
+
+```elixir
+		defenum DayOfTheWeek do
+		   :sunday -> 1
+		   :monday -> 2
+		   :wednesday -> 3
+		   :thursday -> 4
+		   :friday -> 5
+	  	end
+```
+
+##### Converting enumerations in structs
+Now you'll need to tell Rift where this enum appears in your other data structures. To do that, use the enumerize_struct macro:
+
+     enumerize_struct User, sign_up_day: DayOfTheWeek, last_login_day: DayOfTheWeek
+     
+Now all Users will have their sign_up_day and last_login_day fields automatically converted to enumerations.
+     
+##### Converting enumerations in functions
+
+If the enumeration is the argument or return value of a RPC call, you'll need to identify it there too. Use the `enumerize_function` macro:
+
+    enumerize_function setCreatedDay(_, DayOfTheWeek)
+    enumerize_function getCreatedDay(_) returns: DayOfTheWeek
+
+The `enumerize_function` macro allows you to mark function arguments and return values with the enumeration you would like to use. Unconverted arguments are signaled by using the `_` character. In the example above, setCreatedDay's second argument will be converted to a DayOfTheWeek enumeration and its first argument will be left alone.
+
+Similarly, the function `getCreatedDay` will have its argument left alone and its return value converted into a DayOfTheWeek enumeration
+   
+##### Using enumerations in code
+Enumerations are maps whose modules support converting between the map and integer representation. This shows how to convert integers to enumerations and vice-versa
+
+```elixir
+    x = DayOfWeek.monday
+    > %DayOfWeek{ordinal: :monday, value: 2}
+    x.value
+    > 1
+    x = DayOfWeek.value(4)
+    > %DayOfWeek{ordinal: :thursday, value: 4}
+    x.ordinal
+    > :thursday
+```
+
+Since they're just maps, enumerations can be pattern matched against.
+
+```elixir
+    def handle_user(user=%User{sign_up_day: DayOfTheWeek.monday}) do
+      # code for users that signed up on monday
+    end
+    
+    def handle_user(user=%User{})
+      # code for everyone else
+    end
+```

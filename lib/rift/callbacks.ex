@@ -15,7 +15,7 @@ defmodule Rift.Callbacks do
     end
   end
 
-  defmacro __using__(opts) do
+  defmacro __using__(_opts) do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
     quote do
       require Rift.Callbacks
@@ -42,7 +42,85 @@ defmodule Rift.Callbacks do
     end
   end
 
-  def build(module, filter \\ fn(callback) -> true end) do
+  def default_to_elixir do
+    quote do
+      def to_elixir(:string, char_list) when is_list(char_list) do
+        List.to_string(char_list)
+      end
+
+      def to_elixir(_, whatever) do
+        to_elixir(whatever)
+      end
+
+      def to_elixir({k, v}) do
+        {to_elixir(k), to_elixir(v)}
+      end
+
+      def to_elixir(t) when is_tuple(t) do
+        first = elem(t, 0)
+        case first do
+          :dict ->
+            Enum.into(:dict.to_list(t), HashDict.new, &to_elixir/1)
+          :set ->
+            Enum.into(:sets.to_list(t), HashSet.new, &to_elixir/1)
+          _ ->
+            t
+            |> Tuple.to_list
+            |> Enum.map(&to_elixir/1)
+            |> List.to_tuple
+        end
+      end
+
+      def to_elixir(l) when is_list(l) do
+        Enum.map(l, &to_elixir(&1))
+      end
+
+      def to_elixir(x) do
+        x
+      end
+    end
+  end
+
+  def default_to_erlang do
+    quote do
+      def to_erlang(:string, bitstring) when is_bitstring(bitstring) do
+        String.to_char_list(bitstring)
+      end
+
+      def to_erlang(_, whatever) do
+        to_erlang(whatever)
+      end
+
+      def to_erlang({k, v}) do
+        {to_erlang(k), to_erlang(v)}
+      end
+
+      def to_erlang(l) when is_list(l) do
+        Enum.map(l, &to_erlang(&1))
+      end
+
+      def to_erlang(d=%HashDict{}) do
+        d
+        |> Dict.to_list
+        |> Enum.map(&to_erlang/1)
+        |> :dict.from_list
+      end
+
+      def to_erlang(hs=%HashSet{}) do
+        hs
+        |> Set.to_list
+        |> Enum.map(&to_erlang/1)
+        |> :sets.from_list
+      end
+
+      def to_erlang(x) do
+        x
+      end
+
+    end
+  end
+
+  def build(module, _filter \\ fn(_callback) -> true end) do
     defined_callbacks = module
     |> Module.get_attribute(:callbacks)
     |> Enum.map(fn(callback) ->
@@ -50,7 +128,6 @@ defmodule Rift.Callbacks do
 
     quote do
       unquote_splicing(defined_callbacks)
-
       defp after_to_elixir(x) do
         x
       end

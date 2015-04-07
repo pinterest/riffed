@@ -11,7 +11,10 @@ defmodule ServerTest do
                 setUserFun: &ServerTest.FakeHandler.set_fun/1,
                 listFun: &ServerTest.FakeHandler.list_fun/1,
                 listUserFun: &ServerTest.FakeHandler.list_fun/1,
-                getState: &ServerTest.FakeHandler.get_state/1
+                getState: &ServerTest.FakeHandler.get_state/1,
+                getTranslatedState: &ServerTest.FakeHandler.get_translated_state/1,
+                getLoudUser: &ServerTest.FakeHandler.get_loud_user/0,
+                setLoudUser: &ServerTest.FakeHandler.set_loud_user/1
                ],
 
     server: {:thrift_socket_server,
@@ -23,22 +26,29 @@ defmodule ServerTest do
                      keepalive: true]
             }
 
-    callback(:after_to_elixir, user_status=%Data.UserState{}) do
-      status = case user_status.status do
-                1 -> :active
-                2 -> :inactive
-                3 -> :banned
-              end
-      %Data.UserState{user_status | status: status}
+    defenum ActivityState do
+      :active -> 1
+      :inactive -> 2
+      :banned -> 3
     end
 
-    callback(:after_to_erlang, {:UserState, user, state}) do
-      new_state = case state do
-                    :active -> 1
-                    :inactive -> 2
-                    :banned -> 3
-                  end
-      {:UserState, user, new_state}
+    enumerize_struct User, state: ActivityState
+    enumerize_function getTranslatedState(_), returns: ActivityState
+    enumerize_function getState(ActivityState)
+
+    callback(:after_to_elixir, loudUser=%Data.LoudUser{}) do
+      %Data.LoudUser{loudUser |
+                     firstName: String.upcase(loudUser.firstName),
+                     lastName: String.upcase(loudUser.lastName)}
+    end
+
+
+    callback(:after_to_erlang, {:LoudUser, firstName, lastName}) do
+      downcase = fn(l) ->
+        l |> List.to_string |> String.downcase |> String.to_char_list
+      end
+
+      {:LoudUser, downcase.(firstName), downcase.(lastName)}
     end
   end
 
@@ -75,9 +85,22 @@ defmodule ServerTest do
       FakeHandler.set_args(l)
     end
 
-    def get_state(user_state=%Data.UserState{}) do
-      FakeHandler.set_args(user_state)
-      user_state
+    def get_state(state=%Data.ActivityState{}) do
+      FakeHandler.set_args(state)
+      state
+    end
+
+    def get_translated_state(int_status) do
+      FakeHandler.set_args(int_status)
+      Data.ActivityState.value(int_status)
+    end
+
+    def get_loud_user do
+      Data.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN")
+    end
+
+    def set_loud_user(user) do
+      FakeHandler.set_args(user)
     end
   end
 
@@ -86,12 +109,18 @@ defmodule ServerTest do
     :ok
   end
 
+  def fake_erlang_user do
+    {:User, 'Steve', 'Cohen', 1}
+  end
+
   test "it should convert structs to and from elixir" do
-    request = {:ConfigRequest, "users/:me", 1000, {:User, 'Steve', 'Cohen'}}
+    request = {:ConfigRequest, "users/:me", 1000, fake_erlang_user}
 
     {:reply, response} = Server.handle_function(:config, {request, 1000})
 
-    expected_user = Data.User.new(firstName: "Steve", lastName: "Cohen")
+    expected_user = Data.User.new(firstName: "Steve",
+                                  lastName: "Cohen",
+                                  state: Data.ActivityState.active)
     expected_request = Data.ConfigRequest.new(template: "users/:me",
                                               requestCount: 1000,
                                               user: expected_user)
@@ -116,25 +145,28 @@ defmodule ServerTest do
   end
 
   test "dicts with structs are converted" do
-    user_dict = :dict.from_list([{'steve', {:User, 'Steve', 'Cohen'}}])
+    user_dict = :dict.from_list([{'steve', fake_erlang_user}])
 
     {:reply, response} = Server.handle_function(:dictUserFun, {user_dict})
 
     dict_arg = FakeHandler.args
-    assert Data.User.new(firstName: "Steve", lastName: "Cohen") == dict_arg['steve']
+    expected_user = Data.User.new(firstName: "Steve",
+                                  lastName: "Cohen",
+                                  state: Data.ActivityState.active)
+    assert expected_user == dict_arg['steve']
     assert user_dict == response
   end
 
   test "sets of structs are converted" do
-    user = Data.User.new(firstName: "Steve", lastName: "Cohen")
-    param = :sets.from_list([{:User, 'Steve', 'Cohen'}])
+    user = Data.User.new(firstName: "Steve", lastName: "Cohen", state: Data.ActivityState.active)
+    param = :sets.from_list([fake_erlang_user])
 
     {:reply, response} = Server.handle_function(:setUserFun, {param})
 
     set_arg = FakeHandler.args
 
     assert HashSet.to_list(set_arg) == [user]
-    assert :sets.from_list([{:User, 'Steve', 'Cohen'}]) == response
+    assert :sets.from_list([{:User, 'Steve', 'Cohen', 1}]) == response
   end
 
 
@@ -159,22 +191,37 @@ defmodule ServerTest do
   end
 
   test "lists of structs are properly converted" do
-    user_list = [{:User, 'Steve', 'Cohen'}]
+    user_list = [{:User, 'Steve', 'Cohen', 1}]
 
     {:reply, response} = Server.handle_function(:listUserFun, {user_list})
 
-    assert [Data.User.new(firstName: "Steve", lastName: "Cohen")] == FakeHandler.args
+    assert [Data.User.new(firstName: "Steve",
+                          lastName: "Cohen",
+                          state: Data.ActivityState.active)] == FakeHandler.args
     assert user_list == response
   end
 
-  test "A callback is called when data is serialized" do
-    user_state = {:UserState, {:User, "Stinky", "Stinkman"}, 2}
+  test "An int in arguments is converted to an enum" do
 
-    {:reply, response} = Server.handle_function(:getState, {user_state})
+    Server.handle_function(:getState, {3})
 
-    assert :inactive == FakeHandler.args.status
+    assert Data.ActivityState.banned == FakeHandler.args
+  end
 
-    {:UserState, _user, state} = response
-    assert state == 2
+  test "An enum is converted when it's returned by the server's handler function" do
+    {:reply, response} = Server.handle_function(:getTranslatedState, {2})
+
+    assert 2 == FakeHandler.args
+    assert response == 2
+  end
+
+  test "A callback can convert data from elixir to erlang" do
+    {:reply, response} = Server.handle_function(:getLoudUser, {})
+    assert {:LoudUser, 'stinky', 'stinkman'} == response
+  end
+
+  test "A callback can convert data from erlang do elixir" do
+    Server.handle_function(:setLoudUser, {{:LoudUser, 'stinky', 'stinkman'}})
+    assert Data.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN") == FakeHandler.args
   end
 end
