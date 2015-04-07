@@ -189,9 +189,11 @@ First off, you'll need to re-define your enumeration. To do that, use the defenu
 		defenum DayOfTheWeek do
 		   :sunday -> 1
 		   :monday -> 2
-		   :wednesday -> 3
-		   :thursday -> 4
-		   :friday -> 5
+		   :tuesday -> 3
+		   :wednesday -> 4
+		   :thursday -> 5
+		   :friday -> 6
+		   :saturday -> 7
 	  	end
 ```
 
