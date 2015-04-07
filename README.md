@@ -2,7 +2,7 @@
 # Rift
 ### Healing the rift between Elixir and Thrift.
 
-Thrift's erlang implementation isn't very pleasant to use in Elixir. It prefers records to struenumerize_structcts, littering your code with tuples. It swalllows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Rift fixes this.
+Thrift's erlang implementation isn't very pleasant to use in Elixir. It prefers records to structs, littering your code with tuples. It swalllows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Rift fixes this.
 
 Rift Provides three modules, `Rift.Struct`, `Rift.Client`, and `Rift.Server` which will help you manage this impedence mismatch.
 
