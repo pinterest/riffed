@@ -75,7 +75,7 @@ defmodule Rift.Server do
     end
   end
 
-  def build_delegate_call(delegate_fn) do
+  defp build_delegate_call(delegate_fn) do
     delegate_info = :erlang.fun_info(delegate_fn)
 
     arg_list = build_arg_list(delegate_info[:arity])
@@ -84,27 +84,23 @@ defmodule Rift.Server do
                 [delegate_info[:module]]}, delegate_info[:name]]}, [], arg_list}
   end
 
-  defp build_handler(meta=%Meta{}, struct_module, server_module, thrift_fn_name, delegate_fn) do
+  defp build_handler(meta=%Meta{}, struct_module, thrift_fn_name, delegate_fn, fn_overrides) do
 
     function_meta = Meta.metadata_for_function(meta, thrift_fn_name)
     params_meta = function_meta[:params]
+    reply_meta = function_meta[:reply] |> Rift.Struct.to_rift_type_spec
     tuple_args = build_handler_tuple_args(params_meta)
     delegate_call = build_delegate_call(delegate_fn)
-    casts = build_casts(struct_module, params_meta, :to_elixir)
-    enum_casts = Rift.Enumeration.build_function_casts(server_module,
-                                                       struct_module,
-                                                       thrift_fn_name,
-                                                       :to_elixir)
+    casts = build_casts(thrift_fn_name, struct_module, params_meta, fn_overrides, :to_elixir)
+    overridden_type = Rift.Enumeration.get_overridden_type(thrift_fn_name, :return_type, fn_overrides, reply_meta)
 
     quote do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
         unquote_splicing(casts)
-        unquote_splicing(enum_casts)
         rsp = unquote(delegate_call)
-        |> unquote(struct_module).to_erlang
-        |> cast_return_value_to_erlang(unquote(thrift_fn_name))
+        |> unquote(struct_module).to_erlang(unquote(overridden_type))
 
-        {:reply, unquote(struct_module).to_erlang(rsp)}
+        {:reply, rsp}
       end
     end
   end
@@ -118,17 +114,21 @@ defmodule Rift.Server do
     thrift_meta = ThriftMeta.extract(thrift_module, function_names)
     {server, server_opts}= Module.get_attribute(env.module, :server)
 
+    overrides = Rift.Enumeration.get_overrides(env.module)
+
     handlers = Enum.map(functions,
       fn({fn_name, delegate}) ->
-        build_handler(thrift_meta, struct_module, env.module, fn_name, delegate) end)
+        build_handler(thrift_meta, struct_module, fn_name, delegate, overrides.functions) end)
 
     structs_keyword = ThriftMeta.Meta.structs_to_keyword(thrift_meta)
 
-    quote  do
+    quote do
       defmodule unquote(struct_module) do
+        @build_cast_to_erlang true
         use Rift.Struct, unquote(structs_keyword)
         unquote_splicing(Rift.Callbacks.reconstitute(env.module))
         unquote_splicing(Rift.Enumeration.reconstitute(env.module))
+
       end
 
       def start_link do
@@ -142,9 +142,6 @@ defmodule Rift.Server do
 
       unquote(Rift.Callbacks.default_to_erlang)
       unquote(Rift.Callbacks.default_to_elixir)
-
-      unquote_splicing(Rift.Enumeration.build_cast_return_value_to_erlang(struct_module, env.module))
-      unquote(Rift.Enumeration.generate_default_casts)
       unquote_splicing(handlers)
 
       def handle_function(name, args) do
@@ -152,4 +149,5 @@ defmodule Rift.Server do
       end
     end
   end
+
 end

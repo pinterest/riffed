@@ -14,7 +14,11 @@ defmodule ServerTest do
                 getState: &ServerTest.FakeHandler.get_state/1,
                 getTranslatedState: &ServerTest.FakeHandler.get_translated_state/1,
                 getLoudUser: &ServerTest.FakeHandler.get_loud_user/0,
-                setLoudUser: &ServerTest.FakeHandler.set_loud_user/1
+                setLoudUser: &ServerTest.FakeHandler.set_loud_user/1,
+                getUserStates: &ServerTest.FakeHandler.get_user_states/1,
+                getUsers: &ServerTest.FakeHandler.get_users/1,
+                getAllStates: &ServerTest.FakeHandler.get_all_states/0,
+                echoActivityStateList: &ServerTest.FakeHandler.echo_activity_state_list/1
                ],
 
     server: {:thrift_socket_server,
@@ -34,7 +38,10 @@ defmodule ServerTest do
 
     enumerize_struct User, state: ActivityState
     enumerize_function getTranslatedState(_), returns: ActivityState
-    enumerize_function getState(ActivityState)
+    enumerize_function getState(ActivityState), returns: ActivityState
+    enumerize_function getUserStates(_), returns: {:map, {:string, ActivityState}}
+    enumerize_function getAllStates(), returns: {:set, ActivityState}
+    enumerize_function echoActivityStateList({:list, ActivityState}), returns: {:list, ActivityState}
 
     callback(:after_to_elixir, loudUser=%Data.LoudUser{}) do
       %Data.LoudUser{loudUser |
@@ -102,6 +109,29 @@ defmodule ServerTest do
     def set_loud_user(user) do
       FakeHandler.set_args(user)
     end
+
+    def get_user_states(usernames) do
+      FakeHandler.set_args(usernames)
+      Enum.into(usernames, HashDict.new, fn(name) -> {name, Data.ActivityState.active} end)
+    end
+
+    def get_users(_user_ids) do
+      users = Enum.into([{12345, Data.User.new(firstName: "Stinky",
+                                               lastName: "Stinkman",
+                                               state: Data.ActivityState.active)}],
+                        HashDict.new)
+      Data.ResponseWithMap.new(users: users)
+    end
+
+    def get_all_states do
+      [Data.ActivityState.active, Data.ActivityState.inactive, Data.ActivityState.banned]
+      |> Enum.into(HashSet.new)
+    end
+
+    def echo_activity_state_list(states) do
+      FakeHandler.set_args(states)
+      states
+    end
   end
 
   setup do
@@ -137,8 +167,8 @@ defmodule ServerTest do
     {:reply, response} = Server.handle_function(:dictFun, {param})
 
     hash_dict = FakeHandler.args
-    assert hash_dict['one'] == 1
-    assert hash_dict['two'] == 2
+    assert hash_dict["one"] == 1
+    assert hash_dict["two"] == 2
 
     assert {:ok, 1} == :dict.find('one', response)
     assert {:ok, 2} == :dict.find('two', response)
@@ -153,7 +183,7 @@ defmodule ServerTest do
     expected_user = Data.User.new(firstName: "Steve",
                                   lastName: "Cohen",
                                   state: Data.ActivityState.active)
-    assert expected_user == dict_arg['steve']
+    assert expected_user == dict_arg["steve"]
     assert user_dict == response
   end
 
@@ -171,13 +201,13 @@ defmodule ServerTest do
 
 
   test "sets are converted properly" do
-    set_data = ['hi', 'there', 'guys']
+    set_data = ['hi', 'guys', 'there']
     param = :sets.from_list(set_data)
 
     {:reply, response} = Server.handle_function(:setFun, {param})
 
     set_arg = FakeHandler.args
-    assert Enum.into(set_data, HashSet.new) == set_arg
+    assert Enum.into(["hi", "there", "guys"], HashSet.new) == set_arg
     assert :sets.from_list(set_data) == response
   end
 
@@ -223,5 +253,26 @@ defmodule ServerTest do
   test "A callback can convert data from erlang do elixir" do
     Server.handle_function(:setLoudUser, {{:LoudUser, 'stinky', 'stinkman'}})
     assert Data.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN") == FakeHandler.args
+  end
+
+  test "Enums in maps in return values are properly handled" do
+    {:reply, response} = Server.handle_function(:getUserStates, {["stinky", "stinkman"]})
+    assert :dict.from_list([{'stinky', 1}, {'stinkman', 1}]) == response
+  end
+
+  test "Maps with objects are handled properly" do
+    {:reply, {:ResponseWithMap, user_dict}} = Server.handle_function(:getUsers, {[12345]})
+    assert :dict.from_list([{12345, {:User, 'Stinky', 'Stinkman', 1}}]) == user_dict
+  end
+
+  test "A return value of a set with enums is converted properly" do
+    {:reply, enum_set} = Server.handle_function(:getAllStates, {})
+    assert :sets.from_list([1, 2, 3]) == enum_set
+  end
+
+  test "A return value of a list of enums is converted properly" do
+    {:reply, int_list} = Server.handle_function(:echoActivityStateList, {[1, 2, 3]})
+    assert [Data.ActivityState.active, Data.ActivityState.inactive, Data.ActivityState.banned] == FakeHandler.args
+    assert [1, 2, 3] == int_list
   end
 end

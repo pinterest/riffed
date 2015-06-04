@@ -27,6 +27,10 @@ struct ConfigResponse {
   3: i32 per;
 }
 
+struct ResponseWithMap {
+  1: map<i64, User> users
+}
+
 service Server {
   ConfigResponse config(1: ConfigRequest request, 2: i32 timestamp);
   ActivityState setUserState(1: User user, 2: ActivityState status);
@@ -38,7 +42,12 @@ service Server {
   list<User> listUserFun(1: list<User> users);
   ActivityState getState(1: ActivityState user_state);
   ActivityState echoState(1: ActivityState state_to_echo);
+  list<ActivityState> echoActivityStateList(1: list<ActivityState> states);
   ActivityState getTranslatedState(1: i32 stateAsInt);
   LoudUser getLoudUser();
   void setLoudUser(1: LoudUser user);
+  map<string, ActivityState> getUserStates(1: list<string> usernames);
+  set<ActivityState> getAllStates();
+  ResponseWithMap getUsers(1: list<i64> userIds);
+  void functionWithoutNumberedArgs(User user, i64 likeCount);
 }

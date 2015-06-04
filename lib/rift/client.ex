@@ -15,7 +15,7 @@ defmodule Rift.Client do
                       port: 1234567,
                       framed: true,
                       retries: 1],
-        thrift_module: :my_library_thrift,
+        service: :my_library_thrift,
         import [:configure,
                 :create,
                 :update,
@@ -31,12 +31,12 @@ defmodule Rift.Client do
         end
 
         callback(:after_to_elixir, user_status=%UserStatus{}) do
-        		new_status = case user_status.status do
-        							1 -> :active
-        							2 -> :inactive
-        							3 -> :banned
-        		             end
-        		%UserStatus{user_status | status: new_status}
+            new_status = case user_status.status do
+                      1 -> :active
+                      2 -> :inactive
+                      3 -> :banned
+                         end
+            %UserStatus{user_status | status: new_status}
         end
       end
 
@@ -71,36 +71,33 @@ defmodule Rift.Client do
     end
   end
 
-  defp build_client_function(thrift_metadata, client_module,  struct_module, function_name) do
+  defp build_client_function(thrift_metadata, struct_module, function_name, overrides) do
     function_meta = Meta.metadata_for_function(thrift_metadata, function_name)
     param_meta = function_meta[:params]
+    reply_meta = function_meta[:reply] |> Rift.Struct.to_rift_type_spec
+
+    reply_meta = Rift.Enumeration.get_overridden_type(function_name, :return_type, overrides, reply_meta)
+
     arg_list = build_arg_list(length(param_meta))
     {:{}, _, list_args} = build_handler_tuple_args(param_meta)
-    casts = build_casts(struct_module, param_meta, :to_erlang)
-    enum_casts = Rift.Enumeration.build_function_casts(client_module, struct_module, function_name, :to_erlang)
+    casts = build_casts(function_name, struct_module, param_meta, overrides, :to_erlang)
 
     quote do
       def unquote(function_name)(unquote_splicing(arg_list)) do
         unquote_splicing(casts)
-        unquote_splicing(enum_casts)
+
         rv = GenServer.call(__MODULE__, {unquote(function_name), unquote(list_args)})
+        unquote(struct_module).to_elixir(rv, unquote(reply_meta))
       end
     end
   end
 
-  defp build_client_functions(list_of_functions, thrift_meta, client_module, struct_module) do
-    Enum.map(list_of_functions, &build_client_function(thrift_meta, client_module, struct_module, &1))
-  end
-
-  defp to_host(hostname) when is_list(hostname) do
-    hostname
-  end
-
-  defp to_host(hostname) when is_bitstring(hostname) do
-    String.to_char_list(hostname)
+  defp build_client_functions(list_of_functions, thrift_meta, struct_module, overrides) do
+    Enum.map(list_of_functions, &build_client_function(thrift_meta, struct_module, &1, overrides))
   end
 
   defmacro __before_compile__(env) do
+    overrides = Rift.Enumeration.get_overrides(env.module).functions
     opts = Module.get_attribute(env.module, :client_opts)
     struct_module = Module.get_attribute(env.module, :struct_module)
     thrift_client_module = Module.get_attribute(env.module, :thrift_module)
@@ -110,15 +107,16 @@ defmodule Rift.Client do
     thrift_metadata = extract(thrift_client_module, functions)
     num_retries = opts[:retries] || 0
 
-    client_functions = build_client_functions(functions, thrift_metadata, env.module, struct_module)
+    client_functions = build_client_functions(functions, thrift_metadata, struct_module, overrides)
 
-    hostname = to_host(opts[:host])
+    hostname = opts[:host]
     port = opts[:port]
 
     opts = opts
     |> Keyword.delete(:port)
     |> Keyword.delete(:host)
     |> Keyword.delete(:retries)
+
 
     quote do
       use GenServer
@@ -128,12 +126,30 @@ defmodule Rift.Client do
         unquote_splicing(Rift.Enumeration.reconstitute(env.module))
       end
 
+      defmodule Client do
+        defstruct client: nil, connect: nil
+
+        def new(connect_fn) do
+          {:ok, client} = connect_fn.()
+          %Client{client: client, connect: connect_fn}
+        end
+
+        def reconnect(client=%Client{}) do
+          {:ok, new_client} = client.connect.()
+          %Client{client | client: new_client}
+        end
+      end
+
       def init(:ok) do
-        connect
+        {:ok, Client.new(&connect/0)}
       end
 
       def init(thrift_server) do
-        {:ok, thrift_server}
+        {:ok, Client.new(fn -> {:ok, thrift_server} end)}
+      end
+
+      def init(host, port) do
+        {:ok, Client.new(fn -> connect(host, port) end)}
       end
 
       def start_link do
@@ -145,13 +161,9 @@ defmodule Rift.Client do
       end
 
       unquote_splicing(client_functions)
-      unquote_splicing(Rift.Enumeration.build_cast_return_value_to_elixir(struct_module, env.module))
-      unquote(Rift.Enumeration.generate_default_casts)
 
       def handle_call({call_name, args}, _parent, client) do
         {new_client, response} = call_thrift(client, call_name, args)
-        response = unquote(struct_module).to_elixir(response)
-        |> cast_return_value_to_elixir(call_name)
         {:reply, response, new_client}
       end
 
@@ -160,31 +172,44 @@ defmodule Rift.Client do
       end
 
       defp call_thrift(client, call_name, args, retry_count)
-         when retry_count < unquote(num_retries) do
+      when retry_count < unquote(num_retries) do
 
-          {new_client, response}  = :thrift_client.call(client, call_name, args)
-          case response do
-            {:error, :closed} ->
-              {:ok, new_client} = connect
-              call_thrift(new_client, call_name, args, retry_count + 1)
-            err = {:error, _} ->
-              {new_client, err}
-            {:ok, rsp} ->
-              {new_client, rsp}
-            other = {other, rsp} ->
-              {new_client, other}
-          end
+        {thrift_client, response}  = :thrift_client.call(client.client, call_name, args)
+        new_client = %Client{client | client: thrift_client}
+        case response do
+          {:error, :closed} ->
+            new_client = Client.reconnect(client)
+            call_thrift(new_client, call_name, args, retry_count + 1)
+          err = {:error, _} ->
+            {new_client, err}
+          {:ok, rsp} ->
+            {new_client, rsp}
+          other = {other, rsp} ->
+            {new_client, other}
         end
+      end
 
       defp call_thrift(client, call_name, args, retry_count) do
         {:error, :retries_exceeded}
       end
 
       defp connect do
-        :thrift_client_util.new(unquote(hostname),
-                                unquote(port),
+        connect(unquote(hostname), unquote(port))
+      end
+
+      def connect(host, port) do
+        :thrift_client_util.new(to_host(host),
+                                port,
                                 unquote(thrift_client_module),
                                 unquote(opts))
+      end
+
+      defp to_host(hostname) when is_list(hostname) do
+        hostname
+      end
+
+      defp to_host(hostname) when is_bitstring(hostname) do
+        String.to_char_list(hostname)
       end
     end
   end

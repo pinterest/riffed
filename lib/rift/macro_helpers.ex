@@ -4,9 +4,8 @@ defmodule Rift.MacroHelpers do
     case size do
       0 -> []
       size ->
-          Enum.map(0..size - 1, fn(param_idx) ->
-                     "arg_#{param_idx + 1}"
-                     |> String.to_atom
+          Enum.map(1..size, fn(param_idx) ->
+                     :"arg_#{param_idx}"
                      |> Macro.var(nil)
                    end)
     end
@@ -17,18 +16,24 @@ defmodule Rift.MacroHelpers do
     {:{}, [], args}
   end
 
-  def build_casts(struct_module, params_meta, cast_function) do
+  def build_casts(function_name, struct_module, params_meta, overrides, cast_function) do
     params_meta
-    |> Enum.with_index
-    |> Enum.map(fn({_param_meta, idx}) ->
-                  build_arg_cast(struct_module, String.to_atom("arg_#{idx + 1}"), cast_function)
-                end)
+    |> Enum.map(&build_arg_cast(function_name, struct_module, &1, overrides, cast_function))
   end
 
-  defp build_arg_cast(struct_module, name, cast_function) do
-    var = Macro.var(name, nil)
+  defp build_arg_cast(function_name, struct_module, param_meta, overrides, cast_function) do
+    {index, param_type} = param_meta
+    param_name = :"arg_#{abs(index)}"
+    param_type = Rift.Struct.to_rift_type_spec(param_type)
+    param_type = Rift.Enumeration.get_overridden_type(function_name,
+                                                      param_name,
+                                                      overrides,
+                                                      param_type)
+    var = Macro.var(param_name, nil)
+
     quote do
-      unquote(var) = unquote(struct_module).unquote(cast_function)(unquote(var))
+      unquote(var) = unquote(struct_module).unquote(cast_function)(unquote(var),
+                                                                   unquote(param_type))
     end
   end
 end

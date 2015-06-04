@@ -89,8 +89,7 @@ defmodule Rift.Struct do
     fq_module_name = Module.concat([container_module, struct_module_name])
     record_name = downcase_first(struct_module_name)
     record_file = "src/#{thrift_module}.hrl"
-
-    tuple_to_elixir = build_tuple_to_elixir(container_module, fq_module_name, meta, struct_module_name)
+    tuple_to_elixir = build_tuple_to_elixir(thrift_module, container_module, fq_module_name, meta, struct_module_name)
     struct_to_erlang = build_struct_to_erlang(container_module, fq_module_name, meta, struct_module_name, record_name)
 
     struct_module = quote do
@@ -111,32 +110,70 @@ defmodule Rift.Struct do
     StructData.append(struct_data, struct_module, tuple_to_elixir, struct_to_erlang)
   end
 
-  defp build_tuple_to_elixir(container_module, module_name, meta, thrift_name) do
+  def to_rift_type_spec({:set, item_type}) do
+    {:set, to_rift_type_spec(item_type)}
+  end
+
+  def to_rift_type_spec({:list, item_type}) do
+    {:list, to_rift_type_spec(item_type)}
+  end
+
+  def to_rift_type_spec({:map, key_type, val_type}) do
+    {:map, {to_rift_type_spec(key_type), to_rift_type_spec(val_type)}}
+  end
+
+  def to_rift_type_spec(other) do
+    other
+  end
+
+  defp get_overridden_type_spec(container_module, struct_module, thrift_type_spec, field_name) do
+    overrides = Rift.Enumeration.get_overrides(container_module).structs
+    |> Map.get(struct_module)
+
+    if overrides do
+      Keyword.get(overrides, field_name, thrift_type_spec) |> to_rift_type_spec
+    else
+      to_rift_type_spec(thrift_type_spec)
+    end
+  end
+
+  defp build_tuple_to_elixir(thrift_module, container_module, module_name, meta, thrift_name) do
     # Builds a conversion function that take a tuple and converts it into an Elixir struct
 
-    pos_args = [thrift_name] ++ Enum.map(meta, fn({_, _, _, name, _}) ->
-                                           Macro.var(name, module_name) end)
+    pos_args = [thrift_name] ++ Enum.map(meta,
+                                 fn({_, _, _, name, _}) ->
+                                   Macro.var(name, module_name)
+                                 end)
     pos_args = {:{}, [], pos_args}
 
-    keyword_args = Enum.map(
-      meta, fn({_ ,_ ,type ,name ,_}) ->
-        # the meta format is {index, :undefined, type, name, :undefined}
-        var = Macro.var(name, module_name)
-        quote do
-          {unquote(name), unquote(container_module).to_elixir(unquote(type), unquote(var))}
-        end
-      end)
+    keyword_args = meta
+    |> Enum.map(
+        fn({_ ,_ , _type ,name ,_}) ->
+          # the meta format is {index, :undefined, type, name, :undefined}
+          var = Macro.var(name, module_name)
+          quote do
+            {unquote(name), unquote(var)}
+          end
+        end)
 
-    enum_conversions = Enum.map(
-      meta, fn({_, _, _type, name, _}) ->
-        var = Macro.var(name, module_name)
-        quote do
-          unquote(var) = convert_to_enum(unquote(thrift_name), unquote(name), unquote(var))
-        end
-      end)
+
+    enum_conversions = meta
+    |> Enum.map(
+        fn({_idx, _, type, name, _}) ->
+
+          var = Macro.var(name, module_name)
+
+          match_type = get_overridden_type_spec(container_module, module_name, type, name)
+
+          quote do
+            unquote(var) = unquote(container_module).to_elixir(
+              unquote(var),
+              unquote(match_type))
+          end
+        end)
 
     quote do
-      def to_elixir(unquote(pos_args)) do
+      def to_elixir(unquote(pos_args), {:struct, {unquote(thrift_module), unquote(thrift_name)}}) do
         unquote_splicing(enum_conversions)
         unquote(module_name).new(unquote(keyword_args)) |> after_to_elixir
       end
@@ -147,30 +184,34 @@ defmodule Rift.Struct do
     # Builds a conversion function that turns an Elixir struct into an erlang record
     # The output is quote:
 
-    kwargs = Enum.map(meta, fn({_, _, type, name, _}) ->
-                        # The meta format is {index, :undefined, type, name, :undefined}
-                        field_variable = Macro.var(name, struct_module)
-                        quote do
-                          {unquote(name), unquote(dest_module).to_erlang(unquote(type), s.unquote(field_variable)())}
-                        end
-
-                       end)
+    kwargs = Enum.map(
+      meta,
+      fn({_, _, type, name, _}) ->
+        # The meta format is {index, :undefined, type, name, :undefined}
+        field_variable = Macro.var(name, struct_module)
+        type_spec = get_overridden_type_spec(dest_module, struct_module, type, name)
+        quote do
+          {unquote(name),
+           unquote(dest_module).to_erlang(
+             s.unquote(field_variable)(), unquote(type_spec))
+          }
+        end
+      end)
 
     quote do
-      def to_erlang(s=%unquote(struct_module){}) do
+      def to_erlang(s = %unquote(struct_module){}, type_spec) do
         require unquote(struct_module)
-        s = convert_enums_to_erlang(s)
         unquote(struct_module).unquote(record_fn_name)(unquote(kwargs))
         |> put_elem(0, unquote(record_name))
         |> after_to_erlang
       end
+
     end
   end
 
-
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :thrift_options)
-
+    build_cast_to_erlang = Module.get_attribute(env.module, :build_cast_to_erlang)
     struct_data = Enum.reduce(
       options,
       %StructData{},
@@ -184,20 +225,21 @@ defmodule Rift.Struct do
     callbacks = Rift.Callbacks.build(env.module)
     enums = Rift.Enumeration.build(env.module)
 
+    erlang_casts = []
+    if build_cast_to_erlang do
+      erlang_casts = Rift.Enumeration.build_cast_return_value_to_erlang(env.module)
+    end
+
     quote do
       unquote_splicing(struct_data.struct_modules)
       unquote_splicing(struct_data.tuple_converters)
       unquote_splicing(enums.modules)
-
-
-      unquote(Rift.Callbacks.default_to_elixir)
-
-      unquote_splicing(struct_data.struct_converters)
-
-      unquote(Rift.Callbacks.default_to_erlang)
       unquote_splicing(enums.conversion_fns)
+      unquote_splicing(struct_data.struct_converters)
+      unquote_splicing(erlang_casts)
+      unquote(Rift.Callbacks.default_to_elixir)
+      unquote(Rift.Callbacks.default_to_erlang)
       unquote(callbacks)
-
     end
   end
 

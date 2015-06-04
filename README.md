@@ -59,6 +59,7 @@ service PinterestRegister {
   bool isRegistered(1: User user);
   UserState getState(1: string username);
   void setState(1: User user, 2: UserState state);
+  void setStatesForUser(1: map<i64, UserState> stateMap);
 }
 ```
 
@@ -73,6 +74,7 @@ defmodule Server do
                 isRegistered: &ThriftHandlers.is_registered/1,
                 getState: &ThriftHandlers.get_state/1,
                 setState: &ThriftHandlers.set_state/2
+                setStatesForUser: &ThriftHandlers.set_states_for_user/1
     ],
 
     server: {:thrift_socket_server,
@@ -231,7 +233,13 @@ If the enumeration is the argument or return value of a RPC call, you'll need to
 The `enumerize_function` macro allows you to mark function arguments and return values with the enumeration you would like to use. Unconverted arguments are signaled by using the `_` character. In the example above, setCreatedDay's second argument will be converted to a DayOfTheWeek enumeration and its first argument will be left alone.
 
 Similarly, the function `getCreatedDay` will have its argument left alone and its return value converted into a DayOfTheWeek enumeration
-   
+
+Complex types are also handled in both arguments and return types:
+
+```elixir
+    enumerize_function setStatesForUser({:map, {:i64, UserState}})
+```   
+
 ##### Using enumerations in code
 Enumerations are elixir structs whose modules support converting between the struct and integer representation. This shows how to convert integers to enumerations and vice-versa
 
@@ -246,7 +254,7 @@ Enumerations are elixir structs whose modules support converting between the str
     > :thursday
 ```
 
-Since they're just maps, enumerations can be pattern matched against.
+Since they're just maps, enumerations support pattern matching.
 
 ```elixir
     def handle_user(user=%User{sign_up_day: DayOfTheWeek.monday}) do

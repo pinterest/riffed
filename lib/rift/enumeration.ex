@@ -51,8 +51,11 @@ defmodule Rift.Enumeration do
 
   defmacro __using__(_opts) do
     Module.register_attribute(__CALLER__.module, :enums, accumulate: true)
+    Module.register_attribute(__CALLER__.module, :enums_orig, accumulate: true)
     Module.register_attribute(__CALLER__.module, :enum_conversions, accumulate: true)
+    Module.register_attribute(__CALLER__.module, :enum_conversions_orig, accumulate: true)
     Module.register_attribute(__CALLER__.module, :enum_arg_conversion, accumulate: true)
+    Module.register_attribute(__CALLER__.module, :enum_arg_conversion_orig, accumulate: true)
     quote do
       require Rift.Enumeration
       import Rift.Enumeration, only: [defenum: 2,
@@ -84,6 +87,7 @@ defmodule Rift.Enumeration do
         raise "#{x} is not in the form :key -> value"
       end)
     Module.put_attribute(__CALLER__.module, :enums, {enum_name, mapping_kwargs})
+    Module.put_attribute(__CALLER__.module, :enums_orig, {enum_name, mappings})
   end
 
   @doc """
@@ -95,6 +99,7 @@ defmodule Rift.Enumeration do
   """
   defmacro enumerize_struct(struct_name, fields) do
     Module.put_attribute(__CALLER__.module, :enum_conversions, {struct_name, fields})
+    Module.put_attribute(__CALLER__.module, :enum_conversions_orig, {struct_name, fields})
   end
 
   @doc """
@@ -108,6 +113,8 @@ defmodule Rift.Enumeration do
     Module.put_attribute(__CALLER__.module,
                          :enum_arg_conversion,
                          ArgConversion.new(fn_call, nil))
+    Module.put_attribute(__CALLER__.module,
+                         :enum_arg_conversion_orig, {fn_call, nil})
   end
 
   @doc """
@@ -119,29 +126,24 @@ defmodule Rift.Enumeration do
       enumerize_function get_enumeration(), returns: MyDefinedEnum
   """
   defmacro enumerize_function(fn_call, return_kwargs) do
-    [returns: {_, _, [return_type]}] = return_kwargs
+    {return_type, _} = Code.eval_quoted(return_kwargs)
+
     Module.put_attribute(__CALLER__.module,
                          :enum_arg_conversion,
-                         ArgConversion.new(fn_call, return_type ))
+                         ArgConversion.new(fn_call, return_type[:returns]))
+    Module.put_attribute(__CALLER__.module,
+                         :enum_arg_conversion_orig, {fn_call, return_kwargs})
   end
 
   def reconstitute(parent_module) do
-    enum_declarations = Module.get_attribute(parent_module, :enums)
+    enum_declarations = Module.get_attribute(parent_module, :enums_orig)
     |> Enum.map(fn({enum_name, mapping_kwargs}) ->
-                  mapping = Enum.map(mapping_kwargs,
-                    fn({k, v}) ->
-                      quote do
-                        unquote(k) -> unquote(v)
-                      end
-                    end)
-
                   quote do
-                    defenum(unquote(enum_name), do: unquote(List.flatten(mapping)))
-
+                    defenum(unquote(enum_name), do: unquote(List.flatten(mapping_kwargs)))
                   end
                 end)
 
-    conversion_declarations = Module.get_attribute(parent_module, :enum_conversions)
+    conversion_declarations = Module.get_attribute(parent_module, :enum_conversions_orig)
     |> Enum.map(fn({struct_name, field_name}) ->
                   quote do
                     enumerize_struct(unquote(struct_name), unquote(field_name))
@@ -151,75 +153,97 @@ defmodule Rift.Enumeration do
     List.flatten([enum_declarations, conversion_declarations])
   end
 
-  def build_function_casts(dest_module, struct_module, function_name, direction) do
-    conversions = Module.get_attribute(dest_module, :enum_arg_conversion)
-    |> Enum.map(fn(conversion=%ArgConversion{}) ->
-                  {conversion.fn_name, conversion}
-                end)
-    |> Enum.into(Keyword.new)
+  def build_cast_return_value_to_erlang(struct_module) do
+    get_overrides(struct_module).functions
+    |> Enum.reduce(
+        [],
+        fn({_fn_name, conversion=%ArgConversion{}}, acc) ->
+          Enum.reduce(
+            conversion.args, acc,
+            fn
+            ({_arg_name, :none}, acc) ->
+              acc
+            ({_arg_name, conversion}, acc) ->
+              quoted = process_arg(struct_module, conversion)
+              [quoted | acc]
+            end)
+        end)
+  end
 
-    case conversions[function_name] do
-      nil -> []
-      conversion = %ArgConversion{} ->
-          conversion.args
-          |> Stream.with_index
-          |> Stream.map(&(build_function_cast(struct_module, &1, direction)))
-      |> Enum.filter(fn(e) -> ! is_nil(e) end)
+  def get_overridden_type(fn_name, :return_type, overrides, type_spec) do
+    fn_overrides = Map.get(overrides, fn_name)
+    if fn_overrides do
+      fn_overrides.return_type || type_spec
+    else
+      type_spec
     end
   end
 
-  def build_cast_return_value_to_erlang(struct_module, server_module) do
-    Module.get_attribute(server_module, :enum_arg_conversion)
-    |> Stream.filter(&(&1.return_type != nil))
-    |> Enum.map(
-        fn(conversion=%ArgConversion{}) ->
-          fq_enum_name = Module.concat(struct_module, conversion.return_type)
-          quote do
-            def cast_return_value_to_erlang(elixir_enum=%unquote(fq_enum_name){}, unquote(conversion.fn_name)) do
-              elixir_enum.value
-            end
-          end
-        end)
+  def get_overridden_type(fn_name, arg_name, overrides, type_spec) do
+    fn_overrides = Map.get(overrides, fn_name)
+
+    if fn_overrides do
+      case Keyword.get(fn_overrides.args, arg_name) do
+        :none -> type_spec
+        other -> other
+      end
+    else
+      type_spec
+    end
   end
 
-  def build_cast_return_value_to_elixir(struct_module, client_module) do
-    Module.get_attribute(client_module, :enum_arg_conversion)
-    |> Stream.filter(&(&1.return_type != nil))
-    |> Enum.map(
-        fn(conversion=%ArgConversion{}) ->
-          fq_enum = Module.concat(struct_module, conversion.return_type)
-          quote do
-            def cast_return_value_to_elixir(value, unquote(conversion.fn_name)) do
-              unquote(fq_enum).value(value)
-            end
-          end
-        end)
-  end
-
-  def generate_default_casts do
+  defp process_arg(struct_module, conversion) do
+    enum_module = Module.concat(struct_module, conversion)
     quote do
-      def cast_return_value_to_elixir(value, fn_name) do
-        value
-      end
-
-      def cast_return_value_to_erlang(value, _) do
-        value
+      def to_erlang(enum=%unquote(enum_module){}, _) do
+        enum.value()
       end
     end
+  end
+
+  def get_overrides(container_module) do
+    {enum_field_conversions, _} = container_module
+    |> Module.get_attribute(:enum_conversions)
+    |> Code.eval_quoted
+
+    enum_function_conversions = container_module
+    |> Module.get_attribute(:enum_arg_conversion)
+    |> Enum.map(fn(conv=%ArgConversion{}) ->
+                  args = conv.args
+                  |> Enum.with_index
+                  |> Enum.map(fn
+                              ({{_, _, nil}, idx}) ->
+                                # underscore case ( enumerize_function my_fn(_) )
+                                {:"arg_#{idx + 1}", :none}
+                              ({other, idx}) ->
+                                {rv_type, _} = Code.eval_quoted(other)
+                                {:"arg_#{idx + 1}", rv_type}
+                              end)
+                  %ArgConversion{conv | args: args}
+                end)
+    structs = enum_field_conversions
+    |> Enum.reduce(%{}, fn({struct_name, mappings}, acc) ->
+                     fq_struct_name = Module.concat(:Elixir, Module.concat(container_module, struct_name))
+                     Map.put(acc, fq_struct_name, mappings)
+                   end)
+    functions = enum_function_conversions
+    |> Enum.reduce(%{}, fn(conversion, acc) ->
+                     Map.put(acc, conversion.fn_name, conversion)
+                   end)
+
+    %{structs: structs, functions: functions}
+
   end
 
   def build(container_module) do
-    enum_conversions = Module.get_attribute(container_module, :enum_conversions)
     enums = Module.get_attribute(container_module, :enums)
     enum_modules = Enum.map(enums, &build_enum_module/1)
-    int_to_enums = Enum.map(enum_conversions,
-                            &(build_erlang_to_enum_functions(&1)))
-    enum_to_ints = Enum.map(enum_conversions,
-                            &(build_enum_to_erlang(container_module, &1)))
+    int_to_enums = Enum.map(enums,
+                            &(build_erlang_to_enum_function(container_module, &1)))
+    enum_to_ints = Enum.map(enums,
+                            &(build_enum_to_erlang_function(container_module, &1)))
 
     enum_conversion_fns = Enum.concat(int_to_enums, enum_to_ints)
-    |> add_default_converters
-    |> Enum.reverse
 
     %Output{conversion_fns: enum_conversion_fns, modules: enum_modules}
   end
@@ -247,71 +271,31 @@ defmodule Rift.Enumeration do
     end
   end
 
-  defp build_enum_to_erlang(container_module, {enum_module, opts}) do
-    {_, _, [enum_name]} = enum_module
-    fq_enum_module = Module.concat(container_module, enum_name)
-    kwargs = Enum.map(opts,
-      fn({name, _enum_type}) ->
-        var = Macro.var(name, fq_enum_module)
-        quoted_call = quote do: enum.unquote(var).value
-        {name, quoted_call}
-      end)
+  defp build_enum_to_erlang_function(container_module, enum_decl) do
+    {{_, _, [enum_name]}, _} = enum_decl
+
+    enum_alias = {:__aliases__, [alias: false], [enum_name]}
+    fq_enum_name = Module.concat(container_module, enum_name)
     quote do
-      def convert_enums_to_erlang(enum=%unquote(container_module).unquote(enum_module){}) do
-        %unquote(container_module).unquote(enum_module){enum | unquote_splicing(kwargs)}
+      def to_erlang(enum=%unquote(fq_enum_name){}, unquote(enum_alias)) do
+        enum.value()
+      end
+
+      def to_erlang(enum=%unquote(fq_enum_name){}, _) do
+        enum.value()
       end
     end
   end
 
-  defp build_erlang_to_enum_functions({enum_module, opts}) do
-    opts
-    |> Enum.map(
-        fn({enum_name, enum_type}) ->
-          build_erlang_to_enum_function( enum_module, enum_name, enum_type)
-        end)
-    |> List.flatten
-  end
+  defp build_erlang_to_enum_function(container_module, enum_decl) do
+    {{_, _, [enum_name]}, _} = enum_decl
 
-  defp build_erlang_to_enum_function(enum_module, name, enum_type) do
-    {_, _, [enum_name]} = enum_module
-
+    enum_alias = {:__aliases__, [alias: false], [enum_name]}
+    fq_enum_name = Module.concat(container_module, enum_name)
     quote do
-      def convert_to_enum(unquote(enum_name), unquote(name), value) do
-        unquote(enum_type).value(value)
+      def to_elixir(erlang_value, unquote(enum_alias)) do
+        unquote(fq_enum_name).value(erlang_value)
       end
     end
   end
-
-  defp add_default_converters(converters) do
-    default_converter = quote do
-      def convert_enums_to_erlang(x) do
-        x
-      end
-
-      def convert_to_enum(record_name, field_name, field_value) do
-        field_value
-      end
-    end
-    [default_converter | converters]
-  end
-
-  defp build_function_cast(_enum_module, {{:__aliases__, _, [_struct_name]}, sequence}, :to_erlang) do
-    variable = Macro.var(:"arg_#{sequence + 1}", nil)
-    quote do
-      unquote(variable) = unquote(variable).value()
-    end
-  end
-
-  defp build_function_cast(enum_module, {{:__aliases__, _, [struct_name]}, sequence}, :to_elixir) do
-    variable = Macro.var(:"arg_#{sequence + 1}", nil)
-    fq_enum_name = Module.concat(enum_module, struct_name)
-    quote do
-      unquote(variable) = unquote(fq_enum_name).value(unquote(variable))
-    end
-  end
-
-  defp build_function_cast(_, _, _) do
-    nil
-  end
-
 end
