@@ -179,6 +179,29 @@ You can then issue calls against the client:
      
 Clients support the same callbacks and enumeration transformations that the server suports, and they're configured identically.
 
+## Sharing Structs
+Sometimes, you have common structs that are shared between services. Due to Rift auto-importing structs based on the server definition, Rift will duplicate shard structs. This auto-import feature can be disabled by specifying `auto_import_structs: false` when creating a client or server. You can then use Rift.Struct to build a struct module:
+
+```elixir
+	defmodule SharedStructs do
+	   use Rift.Struct, shared_types: [:User, :Account, :Profile]
+	end
+	
+	defmodule UserService do
+	   use Rift.Server, service: :user_thrift,
+	   auto_import_structs: false,
+	   structs: SharedStructs
+	   ...
+	end
+	
+	defmodule ProfileService do
+	   use Rift.Server, service: :profile_thrift,
+	   auto_import_structs: false,
+	   structs: SharedStructs
+	   ...
+	end
+```
+
 
 ## Handling Thrift Enumerations
 

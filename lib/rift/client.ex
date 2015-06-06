@@ -67,6 +67,7 @@ defmodule Rift.Client do
       @client_opts unquote(client_opts)
       @thrift_module unquote(thrift_module)
       @functions unquote(functions)
+      @auto_import_structs unquote(Keyword.get(opts, :auto_import_structs, true))
       @before_compile Rift.Client
     end
   end
@@ -117,14 +118,22 @@ defmodule Rift.Client do
     |> Keyword.delete(:host)
     |> Keyword.delete(:retries)
 
+    if Module.get_attribute(env.module, :auto_import_structs) do
+      struct_module = quote do
+        defmodule unquote(struct_module) do
+          use Rift.Struct, unquote(Meta.structs_to_keyword(thrift_metadata))
+          unquote_splicing(Rift.Callbacks.reconstitute(env.module))
+          unquote_splicing(Rift.Enumeration.reconstitute(env.module))
+        end
+      end
+    else
+      struct_module = quote do
+      end
+    end
 
     quote do
       use GenServer
-      defmodule unquote(struct_module) do
-        use Rift.Struct, unquote(Meta.structs_to_keyword(thrift_metadata))
-        unquote_splicing(Rift.Callbacks.reconstitute(env.module))
-        unquote_splicing(Rift.Enumeration.reconstitute(env.module))
-      end
+      unquote(struct_module)
 
       defmodule Client do
         defstruct client: nil, connect: nil

@@ -4,6 +4,7 @@ defmodule ServerTest do
   defmodule Server do
     use Rift.Server, service: :server_thrift,
     structs: Data,
+    auto_build_structs: true,
     functions: [config: &ServerTest.FakeHandler.config/2,
                 dictFun: &ServerTest.FakeHandler.dict_fun/1,
                 dictUserFun: &ServerTest.FakeHandler.dict_fun/1,

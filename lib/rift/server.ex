@@ -71,6 +71,7 @@ defmodule Rift.Server do
       @functions unquote(opts[:functions])
       @struct_module unquote(opts[:structs])
       @server unquote(opts[:server])
+      @auto_import_structs unquote(Keyword.get(opts, :auto_import_structs, true))
       @before_compile Rift.Server
     end
   end
@@ -112,9 +113,10 @@ defmodule Rift.Server do
 
     function_names = Enum.map(functions, fn({name, _}) -> name end)
     thrift_meta = ThriftMeta.extract(thrift_module, function_names)
-    {server, server_opts}= Module.get_attribute(env.module, :server)
 
+    {server, server_opts} = Module.get_attribute(env.module, :server)
     overrides = Rift.Enumeration.get_overrides(env.module)
+
 
     handlers = Enum.map(functions,
       fn({fn_name, delegate}) ->
@@ -122,14 +124,22 @@ defmodule Rift.Server do
 
     structs_keyword = ThriftMeta.Meta.structs_to_keyword(thrift_meta)
 
-    quote do
-      defmodule unquote(struct_module) do
-        @build_cast_to_erlang true
-        use Rift.Struct, unquote(structs_keyword)
-        unquote_splicing(Rift.Callbacks.reconstitute(env.module))
-        unquote_splicing(Rift.Enumeration.reconstitute(env.module))
-
+    if Module.get_attribute(env.module, :auto_import_structs)  do
+      struct_module = quote do
+        defmodule unquote(struct_module) do
+          @build_cast_to_erlang true
+          use Rift.Struct, unquote(structs_keyword)
+          unquote_splicing(Rift.Callbacks.reconstitute(env.module))
+          unquote_splicing(Rift.Enumeration.reconstitute(env.module))
+        end
       end
+    else
+      struct_module = quote do
+      end
+    end
+
+    quote do
+      unquote(struct_module)
 
       def start_link do
         default_opts = [service: unquote(thrift_module),
