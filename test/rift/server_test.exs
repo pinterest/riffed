@@ -18,7 +18,11 @@ defmodule ServerTest do
                 getUserStates: &ServerTest.FakeHandler.get_user_states/1,
                 getUsers: &ServerTest.FakeHandler.get_users/1,
                 getAllStates: &ServerTest.FakeHandler.get_all_states/0,
-                echoActivityStateList: &ServerTest.FakeHandler.echo_activity_state_list/1
+                echoActivityStateList: &ServerTest.FakeHandler.echo_activity_state_list/1,
+                getMapResponse: &ServerTest.FakeHandler.get_map_response/0,
+                getListResponse: &ServerTest.FakeHandler.get_list_response/0,
+                getSetResponse: &ServerTest.FakeHandler.get_set_response/0,
+                getUserBoardResponse: &ServerTest.FakeHandler.get_user_board_response/0
                ],
 
     server: {:thrift_socket_server,
@@ -132,6 +136,40 @@ defmodule ServerTest do
       FakeHandler.set_args(states)
       states
     end
+
+    def get_user_board(board_id) do
+      user = Data.User.new(firstName: "Foobie",
+                           lastName: "Barson",
+                           state: Data.ActivityState.active)
+      board = Data.Board.new(id: board_id,
+                             userId: 1234,
+                             title: "My Sweet Board",
+                             pinIds: [1, 2, 3, 4, 5])
+      Enum.into([{board_id, Data.UserBoardResponse.new(user: user, board: board)}],
+                HashDict.new)
+    end
+
+    def get_map_response do
+      Data.MapResponse.new(mapId: 12)
+    end
+
+    def get_list_response do
+      Data.ListResponse.new(listId: 2221)
+    end
+
+    def get_set_response do
+      Data.SetResponse.new(setId: 2381)
+    end
+
+    def get_user_board_response do
+      Data.UserBoardResponse.new(user: Data.User.new(firstName: "Foobie",
+                                                     lastName: "Barson",
+                                                     state: Data.ActivityState.active),
+                                 board: Data.Board.new(id: 1234,
+                                                       userId: 5678,
+                                                       title: "Sweet stuff",
+                                                       pinIds: [6, 9, 32]))
+    end
   end
 
   setup do
@@ -139,12 +177,12 @@ defmodule ServerTest do
     :ok
   end
 
-  def fake_erlang_user do
+  def user_tuple do
     {:User, 'Steve', 'Cohen', 1}
   end
 
   test "it should convert structs to and from elixir" do
-    request = {:ConfigRequest, "users/:me", 1000, fake_erlang_user}
+    request = {:ConfigRequest, "users/:me", 1000, user_tuple}
 
     {:reply, response} = Server.handle_function(:config, {request, 1000})
 
@@ -175,7 +213,7 @@ defmodule ServerTest do
   end
 
   test "dicts with structs are converted" do
-    user_dict = :dict.from_list([{'steve', fake_erlang_user}])
+    user_dict = :dict.from_list([{'steve', user_tuple}])
 
     {:reply, response} = Server.handle_function(:dictUserFun, {user_dict})
 
@@ -189,7 +227,7 @@ defmodule ServerTest do
 
   test "sets of structs are converted" do
     user = Data.User.new(firstName: "Steve", lastName: "Cohen", state: Data.ActivityState.active)
-    param = :sets.from_list([fake_erlang_user])
+    param = :sets.from_list([user_tuple])
 
     {:reply, response} = Server.handle_function(:setUserFun, {param})
 
@@ -275,4 +313,29 @@ defmodule ServerTest do
     assert [Data.ActivityState.active, Data.ActivityState.inactive, Data.ActivityState.banned] == FakeHandler.args
     assert [1, 2, 3] == int_list
   end
+
+  test "It should import return types defined in maps" do
+    # If this compiles, the test is successful. Previously we were not properly
+    # searching maps, lists and sets for structs.
+    Server.handle_function(:getMapResponse, {})
+  end
+
+  test "It should import return types defined in lists" do
+    # If this compiles, the test is successful. Previously we were not properly
+    # searching maps, lists and sets for structs.
+    Server.handle_function(:getListResponse, {})
+  end
+
+  test "It should import return types defined in sets" do
+    # If this compiles, the test is successful. Previously we were not properly
+    # searching maps, lists and sets for structs.
+    Server.handle_function(:getSetResponse, {})
+  end
+
+  test "It should import return types defined inside structures inside of maps" do
+    # If this compiles, the test is successful. Previously we were not properly
+    # searching maps, lists and sets for structs.
+    Server.handle_function(:getUserBoardResponse, {})
+  end
+
 end

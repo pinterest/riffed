@@ -155,7 +155,7 @@ Assuming the same configuration above, the following block will generate a clien
            :banned -> 3
          end
          
-         enumerize_struct User, :state -> UserState
+         enumerize_struct User, state: UserState
          enumerize_function getState(_), returns: UserState
      end
 ```

@@ -41,40 +41,47 @@ defmodule Rift.ThriftMeta do
     {:struct, param_meta} = thrift_module.function_info(thrift_fn_name, :params_type)
     reply_meta = thrift_module.function_info(thrift_fn_name, :reply_type)
     {:struct, exception_meta} = thrift_module.function_info(thrift_fn_name, :exceptions)
-
     meta
-    |> find_structs_in_list(param_meta)
-    |> find_structs_in_list(exception_meta)
-    |> find_reply_structs(reply_meta)
+    |> find_struct(param_meta)
+    |> find_struct(exception_meta)
+    |> find_struct(reply_meta)
     |> Meta.add_metadata_for_function(thrift_fn_name, [params: param_meta,
                                                        exceptions: exception_meta,
                                                        reply: reply_meta])
   end
 
-  defp find_structs_in_list(meta=%Meta{}, param_meta) when is_list(param_meta) do
+  defp find_struct(meta=%Meta{}, param_meta) when is_list(param_meta) do
     Enum.reduce(param_meta, meta,
       fn({_order, param_type}, meta) ->
-        append_struct(meta, param_type) end)
+        find_struct(meta, param_type) end)
   end
 
-  defp find_reply_structs(meta=%Meta{}, reply_meta) do
-    case reply_meta do
-      {:struct, _struct_info} -> append_struct(meta, reply_meta)
-      _ -> meta
-    end
+  defp find_struct(meta=%Meta{}, {:map, key_type, val_type}) do
+    meta
+    |> find_struct(key_type)
+    |> find_struct(val_type)
   end
 
-  defp append_struct(meta=%Meta{}, {:struct, info={module, struct_name}}) do
+  defp find_struct(meta=%Meta{}, {:set, item_type}) do
+    find_struct(meta, item_type)
+  end
+
+  defp find_struct(meta=%Meta{}, {:list, item_type}) do
+    find_struct(meta, item_type)
+  end
+
+  defp find_struct(meta=%Meta{}, {:struct, info={module, struct_name}}) do
     # find out if our structs have nested structs by getting their info
     # and searching for them
     {:struct, struct_info} = :erlang.apply(module, :struct_info, [struct_name])
-    meta = Enum.reduce(struct_info, meta, fn({_idx, info}, meta) ->
-                         append_struct(meta, info)
+
+    Enum.reduce(struct_info, meta, fn({_idx, info}, meta) ->
+                         find_struct(meta, info)
                        end)
-    Meta.append_struct(meta, [:struct, info])
+    |> Meta.append_struct([:struct, info])
   end
 
-  defp append_struct(meta=%Meta{}, _) do
+  defp find_struct(meta=%Meta{}, _) do
     meta
   end
 end

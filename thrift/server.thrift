@@ -1,3 +1,5 @@
+include "structures.thrift"
+
 enum ActivityState {
   ACTIVE,
   INACTIVE,
@@ -28,7 +30,12 @@ struct ConfigResponse {
 }
 
 struct ResponseWithMap {
-  1: map<i64, User> users
+  1: map<i64, User> users;
+}
+
+struct UserBoardResponse {
+  1: User user,
+  2: structures.Board board;
 }
 
 service Server {
@@ -50,4 +57,8 @@ service Server {
   set<ActivityState> getAllStates();
   ResponseWithMap getUsers(1: list<i64> userIds);
   void functionWithoutNumberedArgs(User user, i64 likeCount);
+  map<i64, structures.MapResponse> getMapResponse();
+  list<structures.ListResponse> getListResponse();
+  set<structures.SetResponse> getSetResponse();
+  map<i64, UserBoardResponse> getUserBoardResponse();
 }
