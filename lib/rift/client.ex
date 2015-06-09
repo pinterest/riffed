@@ -90,6 +90,15 @@ defmodule Rift.Client do
         rv = GenServer.call(__MODULE__, {unquote(function_name), unquote(list_args)})
         unquote(struct_module).to_elixir(rv, unquote(reply_meta))
       end
+
+      def unquote(function_name)(client_pid, unquote_splicing(arg_list))
+        when is_pid(client_pid) do
+
+          unquote_splicing(casts)
+
+          rv = GenServer.call(client_pid, {unquote(function_name), unquote(list_args)})
+          unquote(struct_module).to_elixir(rv, unquote(reply_meta))
+      end
     end
   end
 
@@ -153,12 +162,12 @@ defmodule Rift.Client do
         {:ok, Client.new(&connect/0)}
       end
 
-      def init(thrift_server) do
-        {:ok, Client.new(fn -> {:ok, thrift_server} end)}
+      def init({host, port}) do
+        {:ok, Client.new(fn -> connect(host, port) end)}
       end
 
-      def init(host, port) do
-        {:ok, Client.new(fn -> connect(host, port) end)}
+      def init(thrift_server) do
+        {:ok, Client.new(fn -> {:ok, thrift_server} end)}
       end
 
       def start_link do
@@ -167,6 +176,10 @@ defmodule Rift.Client do
 
       def start_link(thrift_client) do
         GenServer.start_link(__MODULE__, thrift_client, name: __MODULE__)
+      end
+
+      def start_link(host, port) do
+        GenServer.start_link(__MODULE__, {host, port})
       end
 
       unquote_splicing(client_functions)
