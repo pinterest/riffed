@@ -288,3 +288,14 @@ Since they're just maps, enumerations support pattern matching.
       # code for everyone else
     end
 ```
+
+You can also retrieve the ordinals, values, or mappings from an enumeration.
+
+```elixir
+    DayOfWeek.ordinals
+    > [:sunday, :monday, :tuesday, ...]
+    DayOfWeek.values
+    > [1, 2, 3, ...]
+    DayOfWeek.mappings
+    > [sunday: 1, monday: 2, tuesday: 3, ...]
+```

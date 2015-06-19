@@ -267,6 +267,18 @@ defmodule Rift.Enumeration do
       defmodule unquote(enum_name) do
         defstruct ordinal: nil, value: nil
         unquote_splicing(fns)
+
+        def ordinals do
+          unquote(Keyword.keys mapping)
+        end
+
+        def values do
+          unquote(Keyword.values mapping)
+        end
+
+        def mappings do
+          unquote(mapping)
+        end
       end
     end
   end

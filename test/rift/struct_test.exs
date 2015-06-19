@@ -207,6 +207,18 @@ defmodule StructTest do
     assert {:DeeplyNestedContainer, [[[2]]]} == erlang_tuple
   end
 
+  test "Time.ordinals returns an ordered list of ordinals from the Time defenum" do
+    assert Structs.Time.ordinals == [:day, :week, :month]
+  end
+
+  test "Time.values returns an ordered list of values in the Time defenum" do
+    assert Structs.Time.values == [1, 2, 3]
+  end
+
+  test "Time.mappings returns a keyword list of ordinals and values in the Time defenum" do
+    assert Structs.Time.mappings == [day: 1, week: 2, month: 3]
+  end
+
   test "a really crazy nested erlang structure can be converted to elixir" do
     internal_dict = :dict.from_list([{2, 'week'}])
     erlang_tuple = {:ListWithMap, [[internal_dict]]}
