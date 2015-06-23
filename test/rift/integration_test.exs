@@ -4,7 +4,8 @@ defmodule IntegrationTest do
   defmodule IntegServer do
     use Rift.Server, service: :server_thrift,
     structs: IntegServer.Models,
-    functions: [getUserStates: &IntegServer.Handlers.get_user_states/1],
+    functions: [getUserStates: &IntegServer.Handlers.get_user_states/1,
+                echoString: &IntegServer.Handlers.echo_string/1],
     server: {
             :thrift_socket_server,
             port: 22831,
@@ -28,6 +29,10 @@ defmodule IntegrationTest do
               {name, IntegServer.Models.ActivityState.active}
             end)
       end
+
+      def echo_string(input) do
+        input
+      end
     end
   end
 
@@ -39,7 +44,7 @@ defmodule IntegrationTest do
                   framed: true,
                   retries: 3],
     service: :server_thrift,
-    import: [:getUserStates]
+    import: [:getUserStates, :echoString]
   end
 
   defmodule EnumerizedClient do
@@ -94,6 +99,12 @@ defmodule IntegrationTest do
     response = HostAndPortClient.getUserStates(client, ["foo"])
 
     assert 1 == response["foo"]
+  end
+
+  test "unicode text should be supported" do
+    EasyClient.start_link
+    rsp = EasyClient.echoString("マイケルさんはすごいですよ。")
+    assert "マイケルさんはすごいですよ。" == rsp
   end
 
 end

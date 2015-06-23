@@ -56,11 +56,7 @@ defmodule ServerTest do
 
 
     callback(:after_to_erlang, {:LoudUser, firstName, lastName}) do
-      downcase = fn(l) ->
-        l |> List.to_string |> String.downcase |> String.to_char_list
-      end
-
-      {:LoudUser, downcase.(firstName), downcase.(lastName)}
+      {:LoudUser, String.downcase(firstName), String.downcase(lastName)}
     end
   end
 
@@ -179,7 +175,7 @@ defmodule ServerTest do
   end
 
   def user_tuple do
-    {:User, 'Steve', 'Cohen', 1}
+    {:User, "Steve", "Cohen", 1}
   end
 
   test "it should convert structs to and from elixir" do
@@ -197,11 +193,11 @@ defmodule ServerTest do
     {request, timestamp} = FakeHandler.args
     assert expected_request == request
     assert 1000 == timestamp
-    assert {:ConfigResponse, 'users/:me', 1000, 1} == response
+    assert {:ConfigResponse, "users/:me", 1000, 1} == response
   end
 
   test "dicts are properly converted" do
-    param = :dict.from_list([{'one', 1}, {'two', 2}])
+    param = :dict.from_list([{"one", 1}, {"two", 2}])
 
     {:reply, response} = Server.handle_function(:dictFun, {param})
 
@@ -209,12 +205,12 @@ defmodule ServerTest do
     assert hash_dict["one"] == 1
     assert hash_dict["two"] == 2
 
-    assert {:ok, 1} == :dict.find('one', response)
-    assert {:ok, 2} == :dict.find('two', response)
+    assert {:ok, 1} == :dict.find("one", response)
+    assert {:ok, 2} == :dict.find("two", response)
   end
 
   test "dicts with structs are converted" do
-    user_dict = :dict.from_list([{'steve', user_tuple}])
+    user_dict = :dict.from_list([{"steve", user_tuple}])
 
     {:reply, response} = Server.handle_function(:dictUserFun, {user_dict})
 
@@ -235,18 +231,18 @@ defmodule ServerTest do
     set_arg = FakeHandler.args
 
     assert HashSet.to_list(set_arg) == [user]
-    assert :sets.from_list([{:User, 'Steve', 'Cohen', 1}]) == response
+    assert :sets.from_list([{:User, "Steve", "Cohen", 1}]) == response
   end
 
 
   test "sets are converted properly" do
-    set_data = ['hi', 'guys', 'there']
+    set_data = ["hi", "guys", "there"]
     param = :sets.from_list(set_data)
 
     {:reply, response} = Server.handle_function(:setFun, {param})
 
     set_arg = FakeHandler.args
-    assert Enum.into(["hi", "there", "guys"], HashSet.new) == set_arg
+    assert Set.equal? Enum.into(["hi", "there", "guys"], HashSet.new), set_arg
     assert :sets.from_list(set_data) == response
   end
 
@@ -260,7 +256,7 @@ defmodule ServerTest do
   end
 
   test "lists of structs are properly converted" do
-    user_list = [{:User, 'Steve', 'Cohen', 1}]
+    user_list = [{:User, "Steve", "Cohen", 1}]
 
     {:reply, response} = Server.handle_function(:listUserFun, {user_list})
 
@@ -286,22 +282,22 @@ defmodule ServerTest do
 
   test "A callback can convert data from elixir to erlang" do
     {:reply, response} = Server.handle_function(:getLoudUser, {})
-    assert {:LoudUser, 'stinky', 'stinkman'} == response
+    assert {:LoudUser, "stinky", "stinkman"} == response
   end
 
   test "A callback can convert data from erlang do elixir" do
-    Server.handle_function(:setLoudUser, {{:LoudUser, 'stinky', 'stinkman'}})
+    Server.handle_function(:setLoudUser, {{:LoudUser, "stinky", "stinkman"}})
     assert Data.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN") == FakeHandler.args
   end
 
   test "Enums in maps in return values are properly handled" do
     {:reply, response} = Server.handle_function(:getUserStates, {["stinky", "stinkman"]})
-    assert :dict.from_list([{'stinky', 1}, {'stinkman', 1}]) == response
+    assert :dict.from_list([{"stinky", 1}, {"stinkman", 1}]) == response
   end
 
   test "Maps with objects are handled properly" do
     {:reply, {:ResponseWithMap, user_dict}} = Server.handle_function(:getUsers, {[12345]})
-    assert :dict.from_list([{12345, {:User, 'Stinky', 'Stinkman', 1}}]) == user_dict
+    assert :dict.from_list([{12345, {:User, "Stinky", "Stinkman", 1}}]) == user_dict
   end
 
   test "A return value of a set with enums is converted properly" do

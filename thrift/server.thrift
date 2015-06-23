@@ -54,6 +54,7 @@ service Server {
   LoudUser getLoudUser();
   void setLoudUser(1: LoudUser user);
   map<string, ActivityState> getUserStates(1: list<string> usernames);
+  string echoString(1: string input);
   set<ActivityState> getAllStates();
   ResponseWithMap getUsers(1: list<i64> userIds);
   void functionWithoutNumberedArgs(User user, i64 likeCount);

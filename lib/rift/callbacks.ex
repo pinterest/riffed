@@ -89,7 +89,11 @@ defmodule Rift.Callbacks do
   def default_to_erlang do
     quote do
       def to_erlang(bitstring, :string) when is_bitstring(bitstring) do
-        String.to_char_list(bitstring)
+        bitstring
+      end
+
+      def to_erlang(string, :string) when is_list(string) do
+        List.to_string(string)
       end
 
       def to_erlang(elixir_list, {:list, item_type}) when is_list(elixir_list) do

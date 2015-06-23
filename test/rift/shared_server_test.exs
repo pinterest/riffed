@@ -71,7 +71,7 @@ defmodule SharedTests do
   test "retrieving an account should work" do
     {:reply, account} = AccountServer.handle_function(:getAccount, {1234})
     prefs = {:Preferences, 1234, true}
-    assert {:Account, 1234, prefs, 'foo@bar.com', 12345, 67890} == account
+    assert {:Account, 1234, prefs, "foo@bar.com", 12345, 67890} == account
   end
 
 end

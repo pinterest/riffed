@@ -45,7 +45,7 @@ defmodule StructTest do
 
   setup do
     {:ok, struct: Structs.Inner.new(name: "Stinkypants"),
-     tuple: {:Inner, 'Stinkypants'}}
+     tuple: {:Inner, "Stinkypants"}}
   end
 
   test "You should be able to create a new struct" do
@@ -69,7 +69,7 @@ defmodule StructTest do
   end
 
   test "it should handle nested structs" do
-    erlang = {:Nested, {:Inner, 'stinkypants'}}
+    erlang = {:Nested, {:Inner, "stinkypants"}}
     req = to_elixir(erlang, {:struct, {:struct_types, :Nested}})
     assert Structs.Inner.new(name: "stinkypants") == req.inner
   end
@@ -101,7 +101,7 @@ defmodule StructTest do
 
   test "a HashDict of structs should turn itself into a dict of tuples", context do
     actual = Enum.into([{"foo", context[:struct]}], HashDict.new) |> to_erlang({:map, {:string, {:struct, {:struct_types, :Inner}}}})
-    assert :dict.from_list([{'foo', context[:tuple]}]) == actual
+    assert :dict.from_list([{"foo", context[:tuple]}]) == actual
   end
 
   test "A bare enum can be converted into erlang" do
@@ -115,7 +115,7 @@ defmodule StructTest do
   end
 
   test "Enums in structs are properly converted into erlang" do
-    {:NeedsFixup, 'My Name', thrift_value} = Structs.NeedsFixup.new(
+    {:NeedsFixup, "My Name", thrift_value} = Structs.NeedsFixup.new(
       name: "My Name",
       time: Structs.Time.week) |> to_erlang({:struct, {:struct_types, :NeedsFixup}})
     assert Structs.Time.week.value == thrift_value
@@ -148,7 +148,7 @@ defmodule StructTest do
   end
 
   test "Enums in maps in a tuple can be converted to elixir" do
-    erlang_tuple = {:StringToEnumContainer, :dict.from_list([{'foo', 2}])}
+    erlang_tuple = {:StringToEnumContainer, :dict.from_list([{"foo", 2}])}
     elixir_struct = erlang_tuple |> to_elixir({:struct, {:struct_types, :StringToEnumContainer}})
 
     assert Enum.into([{"foo", Structs.Time.week}], HashDict.new) == elixir_struct.nameToTimePeriod
@@ -158,7 +158,7 @@ defmodule StructTest do
     elixir_struct = Structs.StringToEnumContainer.new(nameToTimePeriod: Enum.into([{"foo", Structs.Time.day}], HashDict.new))
     erlang_tuple = to_erlang(elixir_struct, {:struct, {:struct_types, :StringToEnumContainer}})
 
-    assert {:StringToEnumContainer, :dict.from_list([{'foo', 1}])} == erlang_tuple
+    assert {:StringToEnumContainer, :dict.from_list([{"foo", 1}])} == erlang_tuple
   end
 
   test "enums can be converted from erlang when both the keys and values are ints" do
@@ -179,7 +179,7 @@ defmodule StructTest do
   end
 
   test "enums can be the keys of a thrift struct" do
-    erlang_tuple = {:EnumToStringContainer, :dict.from_list([{2, 'week'}])}
+    erlang_tuple = {:EnumToStringContainer, :dict.from_list([{2, "week"}])}
 
     elixir_struct = to_elixir(erlang_tuple, {:struct, {:struct_types, :EnumToStringContainer}})
     assert Enum.into([{Structs.Time.week, "week"}], HashDict.new) == elixir_struct.timePeriodToName
@@ -190,7 +190,7 @@ defmodule StructTest do
       timePeriodToName: Enum.into([{Structs.Time.day, "day"}], HashDict.new))
 
     erlang_tuple = to_erlang(elixir_struct, nil)
-    assert {:EnumToStringContainer, :dict.from_list([{1, 'day'}])} == erlang_tuple
+    assert {:EnumToStringContainer, :dict.from_list([{1, "day"}])} == erlang_tuple
   end
 
   test "deeply nested enums in lists can be converted to elixir" do
@@ -220,7 +220,7 @@ defmodule StructTest do
   end
 
   test "a really crazy nested erlang structure can be converted to elixir" do
-    internal_dict = :dict.from_list([{2, 'week'}])
+    internal_dict = :dict.from_list([{2, "week"}])
     erlang_tuple = {:ListWithMap, [[internal_dict]]}
     elixir_struct = to_elixir(erlang_tuple, {:struct, {:struct_types, :ListWithMap}})
 
@@ -233,7 +233,7 @@ defmodule StructTest do
     elixir_struct = Structs.ListWithMap.new(bonanza: [[dict]])
 
     erlang_tuple = to_erlang(elixir_struct, nil)
-    assert {:ListWithMap, [[:dict.from_list([{3, 'month'}])]]} == erlang_tuple
+    assert {:ListWithMap, [[:dict.from_list([{3, "month"}])]]} == erlang_tuple
   end
 
 
