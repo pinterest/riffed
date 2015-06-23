@@ -12,7 +12,15 @@ defmodule StructTest do
             :IntToEnumContainer,
             :EnumToStringContainer,
             :DeeplyNestedContainer,
-            :ListWithMap
+            :ListWithMap,
+            :DefaultInt,
+            :DefaultString,
+            :DefaultSecondField,
+            :DefaultListInts,
+            :DefaultListStrings,
+            :DefaultSetStrings,
+            :DefaultMap,
+            :DefaultDeepContainer
         ]
 
     defenum Time do
@@ -236,5 +244,49 @@ defmodule StructTest do
     assert {:ListWithMap, [[:dict.from_list([{3, "month"}])]]} == erlang_tuple
   end
 
+  test "default ints should be set properly in elixir" do
+    struct = Structs.DefaultInt.new
+    assert struct.value == 42
+  end
+
+  test "default strings should be set properly in elixir" do
+    struct = Structs.DefaultString.new
+    assert struct.hello == "world"
+  end
+
+  test "default fields should be set even if new is used" do
+    struct = Structs.DefaultSecondField.new(id: 50)
+    assert struct.value == "Mike"
+  end
+
+  test "default fields should be overriden properly" do
+    struct = Structs.DefaultSecondField.new(id: 50, value: "Steve")
+    assert struct.value == "Steve"
+  end
+
+  test "default lists of ints should be set properly in elixir" do
+    struct = Structs.DefaultListInts.new
+    assert struct.values == [4, 6, 7, 5, 3, 0, 9]
+  end
+
+  test "default lists of strings should be set properly in elixir" do
+    struct = Structs.DefaultListStrings.new
+    assert struct.values == ["hello", "world"]
+  end
+
+  test "default sets of strings should be set properly in elixir" do
+    struct = Structs.DefaultSetStrings.new
+    assert struct.values == Enum.into(["hello", "world"], HashSet.new)
+  end
+
+  test "default maps should be set properly in elixir" do
+    struct = Structs.DefaultMap.new
+    assert struct.mappings == %{"cats" => 3, "dogs" => 4}
+  end
+
+  test "defaults for deep containers should be set properly in elixir" do
+    struct = Structs.DefaultDeepContainer.new
+    assert struct.values == [[%{1 => "a"}, %{2 => "b"}]]
+  end
 
 end

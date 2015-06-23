@@ -35,6 +35,8 @@ Structs.to_elixir(user_tuple)
 
 ...but you'll rarely use the Struct module directly. Instead, you'll use the `Rift.Client` or `Rift.Server` modules.
 
+If your Thrift structs define default values for fields, these will be preserved in Elixir structs, using appropiate types. The only exception is that Rift cannot handle default values that reference other structs; the default value for these fields will always be `:undefined`.
+
 
 ## Generating Servers with `Rift.Server`
 
