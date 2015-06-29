@@ -66,9 +66,52 @@ defmodule Rift.Struct do
     end
   end
 
-
   defp build_struct_args(struct_meta) do
-    Enum.map(struct_meta, fn({_, _, _, name, _}) -> {name, :undefined} end)
+    Enum.map(struct_meta, &build_struct_defaults/1)
+  end
+
+  defp build_struct_defaults({_, _, _, name, :undefined}) do
+    {name, :undefined}
+  end
+
+  defp build_struct_defaults({_, _, :string, name, default}) do
+    {name, List.to_string(default)}
+  end
+
+  defp build_struct_defaults({field_idx, required, {:list, type}, name, default}) do
+    default_list = default
+      |> Enum.map(&build_struct_defaults({field_idx, required, type, name, &1}))
+      |> Enum.map(fn {_, val} -> val end)
+    {name, default_list}
+  end
+
+  defp build_struct_defaults({field_idx, required, {:set, type}, name, default}) do
+    default_set = default
+      |> :sets.to_list
+      |> Enum.map(&build_struct_defaults({field_idx, required, type, name, &1}))
+      |> Enum.into(HashSet.new, fn {_, val} -> val end)
+    {name, Macro.escape(default_set)}
+  end
+
+  defp build_struct_defaults({field_idx, required, {:map, key_type, val_type}, name, default}) do
+    default_map = default
+      |> :dict.to_list
+      |> Enum.into(Map.new,
+          fn {k, v} ->
+            {_, key} = build_struct_defaults({field_idx, required, key_type, name, k})
+            {_, val} = build_struct_defaults({field_idx, required, val_type, name, v})
+            {key, val}
+          end)
+    {name, Macro.escape(default_map)}
+  end
+
+  # Note: default values are not supported when the value is a struct
+  defp build_struct_defaults({_, _, {:struct, _}, name, _}) do
+    {name, :undefined}
+  end
+
+  defp build_struct_defaults({_, _, _, name, default}) do
+    {name, default}
   end
 
   defp downcase_first(s) when is_bitstring(s) do
