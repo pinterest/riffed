@@ -17,6 +17,9 @@ defmodule Rift.Server do
   database exports select, delete and insert as functions. These functions take a string and a list of
   strings and return a ResultSet thrift object.
 
+  You can also define an `after_start` function that will execute after the server has been started. The
+  function takes a server_pid and the server_opts as arguments.
+
 
         defmodule Server do
           use Rift.Server, service: :database_thrift,
@@ -30,7 +33,12 @@ defmodule Rift.Server do
                    framed: true,
                    max: 5000,
                    socket_opts: [recv_timeout: 3000]
-         }
+         },
+
+         after_start: fn(server_pid, server_opts) ->
+            ZKRegister.death_pact(server_pid, server_opts[:port])
+         end
+
         end
 
         defmodule Handlers do
@@ -71,6 +79,7 @@ defmodule Rift.Server do
       @functions unquote(opts[:functions])
       @struct_module unquote(opts[:structs])
       @server unquote(opts[:server])
+      @after_start unquote(Macro.escape(opts[:after_start]))
       @auto_import_structs unquote(Keyword.get(opts, :auto_import_structs, true))
       @before_compile Rift.Server
     end
@@ -117,6 +126,7 @@ defmodule Rift.Server do
     {server, server_opts} = Module.get_attribute(env.module, :server)
     overrides = Rift.Enumeration.get_overrides(env.module)
 
+    after_start = Module.get_attribute(env.module, :after_start) || quote do: fn (_, _)-> end
 
     handlers = Enum.map(functions,
       fn({fn_name, delegate}) ->
@@ -147,6 +157,7 @@ defmodule Rift.Server do
                         name: unquote(env.module)]
         opts = Keyword.merge(unquote(server_opts), default_opts)
         {:ok, server_pid} = unquote(server).start(opts)
+        unquote(after_start).(server_pid, unquote(server_opts))
         {:ok, server_pid}
       end
 

@@ -60,6 +60,90 @@ defmodule ServerTest do
     end
   end
 
+  defmodule State do
+
+    def start_link do
+      Agent.start_link(fn -> %{} end, name: __MODULE__)
+    end
+
+    def get(key) do
+      Agent.get(__MODULE__, fn map -> Map.get(map, key) end)
+    end
+
+    def get_all do
+      Agent.get(__MODULE__, fn map -> map end)
+    end
+
+    def update({key, value}) do
+      Agent.update(__MODULE__, fn map -> Map.put(map, key, value) end)
+    end
+
+  end
+
+  defmodule ServerAfterStartDefined do
+    use Rift.Server, service: :server_thrift,
+    structs: ServerAfterStartDefined.Models,
+    functions: [],
+    server: {
+            :thrift_socket_server,
+            port: 22831,
+            framed: true,
+            socket_opts: [recv_timeout: 1000]
+        },
+
+    after_start: fn(server_pid, server_opts) ->
+      State.update({:after_start, :success})
+      State.update({:after_start_port, server_opts[:port]})
+      State.update({:after_start_pid, server_pid})
+    end
+
+  end
+
+  defmodule ServerAfterStartNoop do
+    use Rift.Server, service: :server_thrift,
+    structs: ServerAfterStartNoop.Models,
+    functions: [],
+    server: {
+            :thrift_socket_server,
+            port: 22831,
+            framed: true,
+            socket_opts: [recv_timeout: 1000]
+        },
+
+    after_start: fn(server_pid, server_opts) ->
+    end
+
+  end
+
+  defmodule ServerAfterStartNotDefined do
+    use Rift.Server, service: :server_thrift,
+    structs: ServerAfterStartNotDefined.Models,
+    functions: [],
+    server: {
+            :thrift_socket_server,
+            port: 22831,
+            framed: true,
+            socket_opts: [recv_timeout: 1000]
+        }
+  end
+
+  defmodule ServerAfterStartError do
+    use Rift.Server, service: :server_thrift,
+    structs: ServerAfterStartError.Models,
+    functions: [],
+    server: {
+            :thrift_socket_server,
+            port: 22831,
+            framed: true,
+            socket_opts: [recv_timeout: 1000]
+        },
+
+    after_start: fn(server_pid, server_opts) ->
+      server_pid.fail()
+    end
+
+  end
+
   defmodule FakeHandler do
     def start_link do
       Agent.start_link(fn -> [] end, name: __MODULE__)
@@ -170,12 +254,34 @@ defmodule ServerTest do
   end
 
   setup do
+    State.start_link
     FakeHandler.start_link
     :ok
   end
 
   def user_tuple do
     {:User, "Steve", "Cohen", 1}
+  end
+
+  test "it should execute after_start successfully" do
+    ServerAfterStartDefined.start_link
+    assert :success == State.get(:after_start)
+    assert 22831 == State.get(:after_start_port)
+    refute nil == State.get(:after_start_pid)
+  end
+
+  test "it should execute successfully with after_start as noop" do
+    ServerAfterStartNoop.start_link
+    assert Enum.empty?(State.get_all())
+  end
+
+  test "it should execute successfully when after_start is not defined" do
+    ServerAfterStartNotDefined.start_link
+    assert Enum.empty?(State.get_all())
+  end
+
+  test "it should fail when after_start implementation fails to execute" do
+    assert_raise ArgumentError, fn -> ServerAfterStartError.start_link end
   end
 
   test "it should convert structs to and from elixir" do
