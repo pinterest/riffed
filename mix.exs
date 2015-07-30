@@ -30,8 +30,8 @@ defmodule Rift.Mixfile do
   defp deps do
     [
         {:thrift, git: "ssh://git@phabricator.pinadmin.com/diffusion/EXT/elixir-thrift.git", submodules: true},
-        {:meck, github: "eproxus/meck", tag: "0.8.2", override: true},
-        {:mock, github: "jjh42/mock"},
+        {:meck, "~> 0.8.2"},
+        {:mock, github: "jjh42/mock"}
     ]
   end
 end
