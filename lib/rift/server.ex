@@ -1,10 +1,9 @@
 defmodule Rift.Server do
   @moduledoc ~S"""
-  ### Rift: Bridging the divide between Thrift and Elixir.
+  Provides a server and datastructure mappings to help you build thrift servers in Elixir. Macros
+  dutifully work behind the scenes to give you near-seamless access to Thrift structures.
 
-  This module provides a server and datastructure mappings to help you build thrift servers
-  in Elixir. Macros dutifully work behind the scenes to give you near-seamless access to Thrift
-  structures.
+  *Rift: Bridging the divide between Thrift and Elixir.*
 
   ## Usage
 
@@ -72,10 +71,9 @@ defmodule Rift.Server do
           end
         end
 
-
   ### Usage:
 
-        Server.start_link
+      Server.start_link
 
 
   """

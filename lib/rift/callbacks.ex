@@ -1,13 +1,36 @@
 defmodule Rift.Callbacks do
   @moduledoc ~S"""
-  Callback implementation for structs.
+  Provides callback support when converting between Erlang and Elixir structs.
 
-  Presently, you may define `after_to_elixir` and `after_to_erlang`. after_to_elixir
-  is called after a tuple is converted to an Elixir struct and after_to_erlang is called
+  Presently, you may define `after_to_elixir` and `after_to_erlang`. `after_to_elixir`
+  is called after a tuple is converted to an Elixir struct and `after_to_erlang` is called
   when an Elixir struct is turned into a tuple.
+
+  ## Examples
+
+  Suppose you have a Thrift struct declared as follows:
+
+      struct User {
+        1: string name;
+      }
+
+  Now suppose for some reason that you always want the user's name to be lowercase. Then,
+  adding the following callback will ensure that any data received through thrift will
+  be downcased:
+
+      callback(:after_to_elixir, user=%MyApp.Models.User{}) do
+        %MyApp.Models.User{user | name: String.downcase(user.name)}
+      end
+
+  Similarly, the following callback ensures data sent from the server is always downcased.
+
+      callback(:after_to_erlang, {:User, name}) do
+        {:User, String.downcase(name)}
+      end
   """
 
   defmodule Callback do
+    @moduledoc false
     defstruct name: nil, guard: nil, body: nil
 
     def new(name, guard, body) do
@@ -28,6 +51,7 @@ defmodule Rift.Callbacks do
     Module.put_attribute(__CALLER__.module, :callbacks, callback)
   end
 
+  @doc false
   def reconstitute(module) do
     module
     |> Module.get_attribute(:callbacks)
@@ -42,6 +66,7 @@ defmodule Rift.Callbacks do
     end
   end
 
+  @doc false
   def default_to_elixir do
     quote do
       def to_elixir(to_convert, :string) when is_bitstring(to_convert) do
@@ -86,6 +111,7 @@ defmodule Rift.Callbacks do
     end
   end
 
+  @doc false
   def default_to_erlang do
     quote do
       def to_erlang(bitstring, :string) when is_bitstring(bitstring) do
@@ -124,6 +150,7 @@ defmodule Rift.Callbacks do
     end
   end
 
+  @doc false
   def build(module, _filter \\ fn(_callback) -> true end) do
     defined_callbacks = module
     |> Module.get_attribute(:callbacks)

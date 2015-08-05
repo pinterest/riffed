@@ -3,6 +3,7 @@ defmodule Rift.Mixfile do
 
   def project do
     [app: :rift,
+     name: "Rift",
      version: "0.0.1",
      elixir: "~> 1.0",
      deps: deps,
@@ -32,7 +33,9 @@ defmodule Rift.Mixfile do
         {:thrift, git: "ssh://git@phabricator.pinadmin.com/diffusion/EXT/elixir-thrift.git", submodules: true},
         {:meck, "~> 0.8.2"},
         {:mock, github: "jjh42/mock"},
-        {:lager, github: "basho/lager"}
+        {:lager, github: "basho/lager"},
+        {:earmark, "~> 0.1", only: :dev},
+        {:ex_doc, "~> 0.7", only: :dev}
     ]
   end
 end

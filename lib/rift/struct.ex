@@ -1,48 +1,50 @@
 defmodule Rift.Struct do
   @moduledoc ~S"""
-  Parse your thrift files and build some Elixir-y structs and conversions functions for you.
+  Parses your thrift files and builds some Elixir-y structs and conversion functions for you.
 
-  Assuming you have the following Thrift strucs defined in src/request_types.erl:
+  Assuming you have the following Thrift structs defined in src/request_types.erl:
 
-        struct User {
-          1: i32 id,
-          2: string firstName,
-          3: string lastName;
-        }
+      struct User {
+        1: i32 id,
+        2: string firstName,
+        3: string lastName;
+      }
 
-        struct Request {
-          1: User user,
-          2: list<string> cookies,
-          3: map<string, string> params;
-        }
+      struct Request {
+        1: User user,
+        2: list<string> cookies,
+        3: map<string, string> params;
+      }
 
 
   You import them thusly:
 
-    defmodule Request do
-       use Rift.Struct, request_types: [:Request, :User]
-    end
+      defmodule Request do
+        use Rift.Struct, request_types: [:Request, :User]
+      end
 
-  Note that the use statment takes a keyword list whose names are thrift modules and whose values are
+  Note that the `use` statement takes a keyword list whose names are thrift modules and whose values are
   the structs that you would like to import.
 
-  Your request module now has User and Request submodules, and the top level module has conversion
+  Your request module now has `User` and `Request` submodules, and the top level module has conversion
   functions added to it so you can do the following:
 
-        Request.to_elixir({:User, 32, "Steve", "Cohen"})
-        > %Request.User{id: 32, firstName: "Steve", lastName: "Cohen"}
+      iex> Request.to_elixir({:User, 32, "Steve", "Cohen"})
+      %Request.User{id: 32, firstName: "Steve", lastName: "Cohen"}
 
-        user = Request.User.new(firstName: "Richard", lastName: "Feynman", id: 3221)
-        > %Request.User{id: 3221, firstName: "Richard", lastName: "Feynman"}
-        Request.to_erlang(user)
-        > {:User, 3221, "Richard", "Feynman"}
+      iex> user = Request.User.new(firstName: "Richard", lastName: "Feynman", id: 3221)
+      %Request.User{id: 3221, firstName: "Richard", lastName: "Feynman"}
+
+      iex> Request.to_erlang(user)
+      {:User, 3221, "Richard", "Feynman"}
 
   ### Note:
-  Keys not set will have the initial value of :undefined.
+  Keys not set will have the initial value of `:undefined`.
 
   """
 
   defmodule StructData do
+    @moduledoc false
     defstruct struct_modules: [], tuple_converters: [], struct_converters: []
 
     def append(data=%StructData{}, struct_module, tuple_stanza, struct_function) do
@@ -153,6 +155,7 @@ defmodule Rift.Struct do
     StructData.append(struct_data, struct_module, tuple_to_elixir, struct_to_erlang)
   end
 
+  @doc false
   def to_rift_type_spec({:set, item_type}) do
     {:set, to_rift_type_spec(item_type)}
   end

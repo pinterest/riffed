@@ -1,10 +1,6 @@
 defmodule Rift.Client do
   @moduledoc ~S"""
-  # Rift.Client
-
-  #### A Client adpater for thrift
-
-  This module provides a client wrapper for the :thrift_client erlang module.
+  Provides a client wrapper for the `:thrift_client` erlang module.
 
   ## Usage
   The Erlang Thrift client implementation doesn't provide useful Elixir mappings, nor does it gracefully handle socket termination. Rift's wrapper does, dutifully converting between Elixir and thrift for you.
@@ -21,26 +17,16 @@ defmodule Rift.Client do
                 :update,
                 :delete]
 
-        callback(after_to_erlang: user_status={:UserStatus, user, status}) do
-           new_status = case status do
-                          :active -> 1
-                          :inactive -> 2
-                          :banned -> 3
-                        end
-           {:UserStatus, user, new_status}
+        defenum UserState do
+          :active -> 1
+          :inactive -> 2
+          :banned -> 3
         end
 
-        callback(:after_to_elixir, user_status=%UserStatus{}) do
-            new_status = case user_status.status do
-                      1 -> :active
-                      2 -> :inactive
-                      3 -> :banned
-                         end
-            %UserStatus{user_status | status: new_status}
-        end
+        enumerize_struct(User, state: UserState)
       end
 
-  In the above example, you can see that we've imported the functions `configure`, `create`, `update`, and `delete`. Rift generates helper functions in the Client module that convert to and from Elixir. To use the client, simply invoke:
+  In the above example, you can see that we've imported the functions `configure`, `create`, `update`, and `delete`. Rift generates helper functions in the `Client` module that convert to and from Elixir. To use the client, simply invoke:
 
       Client.start_link
 

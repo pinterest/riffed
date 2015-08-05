@@ -16,21 +16,20 @@ You tell `Rift.Struct` about your Erlang Thrift modules and which structs you wo
 Assuming you have a Thrift module called `pinterest_types` in your `src` directory:
 
 ```elixir
-  defmodule Structs do
-    use Rift.Struct, pinterest_types: [:User, :Pin, :Board]
-  end
+defmodule Structs do
+  use Rift.Struct, pinterest_types: [:User, :Pin, :Board]
+end
 ```
 
 Then you can do the following:
 
 ```elixir
-user = Structs.User.new(firstName: "Stinky", lastName: "Stinkman")
-user_tuple = Structs.to_erlang(user)
-> {:User, "Stinky", "Stinkman"}
+iex> user = Structs.User.new(firstName: "Stinky", lastName: "Stinkman")
+iex> user_tuple = Structs.to_erlang(user, {:pinterest_types, :User}
+{:User, "Stinky", "Stinkman"}
 
-Structs.to_elixir(user_tuple)
-> %Structs.User{firstName: "Stinky", lastName: "Stinkman"}
-
+iex> Structs.to_elixir(user_tuple)
+%Structs.User{firstName: "Stinky", lastName: "Stinkman"}
 ```
 
 ...but you'll rarely use the Struct module directly. Instead, you'll use the `Rift.Client` or `Rift.Server` modules.
@@ -67,60 +66,59 @@ service PinterestRegister {
 
 You can set it up like this:
 
-
 ```elixir
 defmodule Server do
-    use Rift.Server, service: :pinterest_thrift,
-    structs: Data,
-    functions: [register: &ThriftHandlers.register/3,
-                isRegistered: &ThriftHandlers.is_registered/1,
-                getState: &ThriftHandlers.get_state/1,
-                setState: &ThriftHandlers.set_state/2
-                setStatesForUser: &ThriftHandlers.set_states_for_user/1
-    ],
-
-    server: {:thrift_socket_server,
-             port: 2112,
-             framed: true,
-             max: 10_000,
-             socket_opts: [
-                     recv_timeout: 3000,
-                     keepalive: true]
-            }
+  use Rift.Server,
+  service: :pinterest_thrift,
+  structs: Data,
+  functions: [register: &ThriftHandlers.register/3,
+              isRegistered: &ThriftHandlers.is_registered/1,
+              getState: &ThriftHandlers.get_state/1,
+              setState: &ThriftHandlers.set_state/2
+              setStatesForUser: &ThriftHandlers.set_states_for_user/1
+  ],
+  server: {:thrift_socket_server,
+           port: 2112,
+           framed: true,
+           max: 10_000,
+           socket_opts: [
+                   recv_timeout: 3000,
+                   keepalive: true]
+          }
   
-	defenum UserState do
-	  :active -> 1
-	  :inactive -> 2
-	  :banned -> 3
-	end
+  defenum UserState do
+    :active -> 1
+    :inactive -> 2
+    :banned -> 3
+  end
   
-    enumerize_struct User, state: UserState
-    enumerize_function setUserState(_, UserState)
-    enumerize_function getState(_), returns: UserState
+  enumerize_struct User, state: UserState
+  enumerize_function setUserState(_, UserState)
+  enumerize_function getState(_), returns: UserState
 end
 
 defmodule ThriftHandlers do
   
   def register(username, first_name, last_name) do
-     # registration logic. Return a new user
-     Data.User.new(username: username, firstName: "Stinky", lastName: "Stinkman")
+    # registration logic. Return a new user
+    Data.User.new(username: username, firstName: "Stinky", lastName: "Stinkman")
   end
 
   def is_registered(user=%Data.User{}) do
-     true
+    true
   end
 
   def get_state(username) do
-     user = Models.User.fetch(username)
-     case user.state do
-        :active -> Data.UserState.active
-  	    :banned -> Data.UserState.banned
-  	    _ -> Data.UserState.inactive
-  	  end
+    user = Models.User.fetch(username)
+    case user.state do
+      :active -> Data.UserState.active
+      :banned -> Data.UserState.banned
+      _ -> Data.UserState.inactive
+    end
   end
   
   def set_state(user=%Data.User{}, state=%Data.UserState{}) do
-	  ...
+    ...
   end
 
 end
@@ -142,41 +140,43 @@ Generating a client is similarly simple. `Rift.Client` just asks that you point 
 Assuming the same configuration above, the following block will generate a client:
 
 ```elixir
-     defmodule RegisterClient do
-       use Rift.Client, 
-         structs: Models,
-         client_opts: [host: "localhost", port: 1234, framed: true],
-         service: :pinterest_thrift, 
-         import [:register, 
-                 :isRegistered, 
-                 :getState]
-         
-         defenum UserState do
-           :active -> 1
-           :inactive -> 2
-           :banned -> 3
-         end
-         
-         enumerize_struct User, state: UserState
-         enumerize_function getState(_), returns: UserState
-     end
+defmodule RegisterClient do
+  use Rift.Client,
+  structs: Models,
+  client_opts: [host: "localhost", port: 1234, framed: true],
+  service: :pinterest_thrift,
+  import [:register,
+         :isRegistered,
+         :getState]
+
+  defenum UserState do
+    :active -> 1
+    :inactive -> 2
+    :banned -> 3
+  end
+
+  enumerize_struct User, state: UserState
+  enumerize_function getState(_), returns: UserState
+end
 ```
      
 You start the client by calling start_link: 
 
 ```elixir     
-     RegisterClient.start_link 
+RegisterClient.start_link
 ```
      
 You can then issue calls against the client:
     
 ```elixir    
-     user = RegisterClient.register("Stinky", "Stinkman")
-     > %Models.User{firstName: "Stinky", lastName: "Stinkman")
-     is_registered = RegisterClient.isRegistered(user)
-     > true
-     state = RegisterClient.getState(user)
-     > %Models.UserState{ordinal: :active, value: 1}
+iex> user = RegisterClient.register("Stinky", "Stinkman")
+%Models.User{firstName: "Stinky", lastName: "Stinkman")
+
+iex> is_registered = RegisterClient.isRegistered(user)
+true
+
+iex> state = RegisterClient.getState(user)
+%Models.UserState{ordinal: :active, value: 1}
 ```
      
 Clients support the same callbacks and enumeration transformations that the server suports, and they're configured identically.
@@ -185,23 +185,23 @@ Clients support the same callbacks and enumeration transformations that the serv
 Sometimes, you have common structs that are shared between services. Due to Rift auto-importing structs based on the server definition, Rift will duplicate shard structs. This auto-import feature can be disabled by specifying `auto_import_structs: false` when creating a client or server. You can then use Rift.Struct to build a struct module:
 
 ```elixir
-	defmodule SharedStructs do
-	   use Rift.Struct, shared_types: [:User, :Account, :Profile]
-	end
-	
-	defmodule UserService do
-	   use Rift.Server, service: :user_thrift,
-	   auto_import_structs: false,
-	   structs: SharedStructs
-	   ...
-	end
-	
-	defmodule ProfileService do
-	   use Rift.Server, service: :profile_thrift,
-	   auto_import_structs: false,
-	   structs: SharedStructs
-	   ...
-	end
+defmodule SharedStructs do
+  use Rift.Struct, shared_types: [:User, :Account, :Profile]
+end
+
+defmodule UserService do
+  use Rift.Server, service: :user_thrift,
+  auto_import_structs: false,
+  structs: SharedStructs
+  ...
+end
+
+defmodule ProfileService do
+  use Rift.Server, service: :profile_thrift,
+  auto_import_structs: false,
+  structs: SharedStructs
+  ...
+end
 ```
 
 
@@ -214,37 +214,39 @@ To do this, Rift supports a syntax to re-define enumerations, and this syntax is
 The following examples assume these RPC calls and enumeration:
 
 ```thrift    
-    enum DayOfTheWeek {
-    	SUNDAY,
-    	MONDAY,
-    	TUESDAY,
-    	WEDNESDAY,
-    	THURSDAY,
-    	FRIDAY
-    }
+enum DayOfTheWeek {
+  SUNDAY,
+  MONDAY,
+  TUESDAY,
+  WEDNESDAY,
+  THURSDAY,
+  FRIDAY
+}
 
-    void setCreatedDay(1: User user, 2: DayOfTheWeek day)
-    DayOfTheWeek getCreatedDay(1: User user);
+void setCreatedDay(1: User user, 2: DayOfTheWeek day);
+DayOfTheWeek getCreatedDay(1: User user);
 ```
 
 First off, you'll need to re-define your enumeration. To do that, use the defenum macro inside of your `Rift.Server` or `Rift.Client` module:
 
 ```elixir
-		defenum DayOfTheWeek do
-		   :sunday -> 1
-		   :monday -> 2
-		   :tuesday -> 3
-		   :wednesday -> 4
-		   :thursday -> 5
-		   :friday -> 6
-		   :saturday -> 7
-	  	end
+defenum DayOfTheWeek do
+  :sunday -> 1
+  :monday -> 2
+  :tuesday -> 3
+  :wednesday -> 4
+  :thursday -> 5
+  :friday -> 6
+  :saturday -> 7
+end
 ```
 
 ##### Converting enumerations in structs
 Now you'll need to tell Rift where this enum appears in your other data structures. To do that, use the enumerize_struct macro:
 
-     enumerize_struct User, sign_up_day: DayOfTheWeek, last_login_day: DayOfTheWeek
+```elixir
+enumerize_struct User, sign_up_day: DayOfTheWeek, last_login_day: DayOfTheWeek
+```
      
 Now all Users will have their sign_up_day and last_login_day fields automatically converted to enumerations.
      
@@ -252,8 +254,10 @@ Now all Users will have their sign_up_day and last_login_day fields automaticall
 
 If the enumeration is the argument or return value of a RPC call, you'll need to identify it there too. Use the `enumerize_function` macro:
 
-    enumerize_function setCreatedDay(_, DayOfTheWeek)
-    enumerize_function getCreatedDay(_) returns: DayOfTheWeek
+```elixir
+enumerize_function setCreatedDay(_, DayOfTheWeek)
+enumerize_function getCreatedDay(_) returns: DayOfTheWeek
+```
 
 The `enumerize_function` macro allows you to mark function arguments and return values with the enumeration you would like to use. Unconverted arguments are signaled by using the `_` character. In the example above, setCreatedDay's second argument will be converted to a DayOfTheWeek enumeration and its first argument will be left alone.
 
@@ -262,42 +266,47 @@ Similarly, the function `getCreatedDay` will have its argument left alone and it
 Complex types are also handled in both arguments and return types:
 
 ```elixir
-    enumerize_function setStatesForUser({:map, {:i64, UserState}})
+enumerize_function setStatesForUser({:map, {:i64, UserState}})
 ```   
 
 ##### Using enumerations in code
 Enumerations are elixir structs whose modules support converting between the struct and integer representation. This shows how to convert integers to enumerations and vice-versa
 
 ```elixir
-    x = DayOfWeek.monday
-    > %DayOfWeek{ordinal: :monday, value: 2}
-    x.value
-    > 1
-    x = DayOfWeek.value(4)
-    > %DayOfWeek{ordinal: :thursday, value: 4}
-    x.ordinal
-    > :thursday
+iex> x = DayOfWeek.monday
+%DayOfWeek{ordinal: :monday, value: 2}
+
+iex> x.value
+1
+
+iex> x = DayOfWeek.value(4)
+%DayOfWeek{ordinal: :thursday, value: 4}
+
+iex> x.ordinal
+:thursday
 ```
 
 Since they're just maps, enumerations support pattern matching.
 
 ```elixir
-    def handle_user(user=%User{sign_up_day: DayOfTheWeek.monday}) do
-      # code for users that signed up on monday
-    end
-    
-    def handle_user(user=%User{})
-      # code for everyone else
-    end
+def handle_user(user=%User{sign_up_day: DayOfTheWeek.monday}) do
+  # code for users that signed up on monday
+end
+
+def handle_user(user=%User{})
+  # code for everyone else
+end
 ```
 
 You can also retrieve the ordinals, values, or mappings from an enumeration.
 
 ```elixir
-    DayOfWeek.ordinals
-    > [:sunday, :monday, :tuesday, ...]
-    DayOfWeek.values
-    > [1, 2, 3, ...]
-    DayOfWeek.mappings
-    > [sunday: 1, monday: 2, tuesday: 3, ...]
+iex> DayOfWeek.ordinals
+[:sunday, :monday, :tuesday, ...]
+
+iex> DayOfWeek.values
+[1, 2, 3, ...]
+
+iex> DayOfWeek.mappings
+[sunday: 1, monday: 2, tuesday: 3, ...]
 ```

@@ -1,5 +1,5 @@
 defmodule Rift.MacroHelpers do
-
+  @moduledoc false
   def build_arg_list(size) when is_integer(size) do
     case size do
       0 -> []

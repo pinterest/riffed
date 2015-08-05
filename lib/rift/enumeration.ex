@@ -1,9 +1,12 @@
 defmodule Rift.Enumeration do
   @moduledoc """
+  Provides enumeration semantics, but with an Elixir flavor.
+
+  ## Usage
+
   Thrift enums are not handled well by the erlang thrift bindings. They're turned into
   ints and left to fend for themselves. This is no way to treat an Enum. The `Rift.Enum`
-  module brings them back into the fold so you can have familiar enumeration semantics
-  but with an Elixir flavor.
+  module brings them back into the fold so you can have familiar enumeration semantics.
 
   To (re)define an enum, use the defenum macro like this:
 
@@ -37,10 +40,12 @@ defmodule Rift.Enumeration do
   """
 
   defmodule Output do
+    @moduledoc false
     defstruct conversion_fns: [], modules: [], fn_args_conversions: HashDict.new
   end
 
   defmodule ArgConversion do
+    @moduledoc false
     defstruct args: nil, return_type: nil, fn_name: nil
 
     def new(call, return_type) do
@@ -107,7 +112,7 @@ defmodule Rift.Enumeration do
   The `fn_call` argument is a function signature to match, and you mark arguments to
   be converted to enums. For example:
 
-     enumerize_function my_thrift_function(_, _, EnumOne, EnumTwo)
+      enumerize_function my_thrift_function(_, _, EnumOne, EnumTwo)
   """
   defmacro enumerize_function(fn_call) do
     Module.put_attribute(__CALLER__.module,
@@ -135,6 +140,7 @@ defmodule Rift.Enumeration do
                          :enum_arg_conversion_orig, {fn_call, return_kwargs})
   end
 
+  @doc false
   def reconstitute(parent_module) do
     enum_declarations = Module.get_attribute(parent_module, :enums_orig)
     |> Enum.map(fn({enum_name, mapping_kwargs}) ->
@@ -153,6 +159,7 @@ defmodule Rift.Enumeration do
     List.flatten([enum_declarations, conversion_declarations])
   end
 
+  @doc false
   def build_cast_return_value_to_erlang(struct_module) do
     get_overrides(struct_module).functions
     |> Enum.reduce(
@@ -170,6 +177,7 @@ defmodule Rift.Enumeration do
         end)
   end
 
+  @doc false
   def get_overridden_type(fn_name, :return_type, overrides, type_spec) do
     fn_overrides = Map.get(overrides, fn_name)
     if fn_overrides do
@@ -201,6 +209,7 @@ defmodule Rift.Enumeration do
     end
   end
 
+  @doc false
   def get_overrides(container_module) do
     {enum_field_conversions, _} = container_module
     |> Module.get_attribute(:enum_conversions)
@@ -235,6 +244,7 @@ defmodule Rift.Enumeration do
 
   end
 
+  @doc false
   def build(container_module) do
     enums = Module.get_attribute(container_module, :enums)
     enum_modules = Enum.map(enums, &build_enum_module/1)

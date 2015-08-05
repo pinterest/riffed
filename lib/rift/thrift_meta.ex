@@ -1,5 +1,7 @@
 defmodule Rift.ThriftMeta do
+  @moduledoc false
   defmodule Meta do
+    @moduledoc false
     defstruct structs: [], meta_by_function: HashDict.new
 
     def append_struct(meta=%Meta{}, struct) do
