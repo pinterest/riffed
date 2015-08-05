@@ -20,6 +20,9 @@ defmodule Rift.Server do
   You can also define an `after_start` function that will execute after the server has been started. The
   function takes a server_pid and the server_opts as arguments.
 
+  Lastly, you can optionally define your own error handler to perform logic when clients disconnect,
+  timeout, or do any other bad things.
+
 
         defmodule Server do
           use Rift.Server, service: :database_thrift,
@@ -37,7 +40,9 @@ defmodule Rift.Server do
 
          after_start: fn(server_pid, server_opts) ->
             ZKRegister.death_pact(server_pid, server_opts[:port])
-         end
+         end,
+
+         error_handler: &Handlers.handle_error/2
 
         end
 
@@ -52,6 +57,18 @@ defmodule Rift.Server do
 
           def delete(query, args) do
             %DB.ResultSet.new(num_rows: 0, results: [])
+          end
+
+          def handle_error(_, :closed) do
+            "Oh no, the client left!"
+          end
+
+          def handle_error(_, :timeout) do
+            "Woah, the client disappeared!"
+          end
+
+          def handle_error(function_name, reason) do
+            "Thrift exploded"
           end
         end
 
@@ -80,6 +97,7 @@ defmodule Rift.Server do
       @struct_module unquote(opts[:structs])
       @server unquote(opts[:server])
       @after_start unquote(Macro.escape(opts[:after_start]))
+      @error_handler unquote(opts[:error_handler])
       @auto_import_structs unquote(Keyword.get(opts, :auto_import_structs, true))
       @before_compile Rift.Server
     end
@@ -115,6 +133,32 @@ defmodule Rift.Server do
     end
   end
 
+  defp build_error_handler(nil) do
+    quote do
+      def handle_error(_, :timeout) do
+        :lager.notice("Connection to client timed out.")
+        {:ok, :timeout}
+      end
+
+      def handle_error(_, :closed) do
+        {:ok, :closed}
+      end
+
+      def handle_error(name, reason) do
+        :lager.error("Unhandled thrift error: #{name}, #{reason}")
+        {:error, reason}
+      end
+    end
+  end
+
+  defp build_error_handler(delegate_fn) do
+    quote do
+      def handle_error(function_name, reason) do
+        unquote(delegate_fn).(function_name, reason)
+      end
+    end
+  end
+
   defmacro __before_compile__(env) do
     functions = Module.get_attribute(env.module, :functions)
     struct_module = Module.get_attribute(env.module, :struct_module)
@@ -127,8 +171,9 @@ defmodule Rift.Server do
     overrides = Rift.Enumeration.get_overrides(env.module)
 
     after_start = Module.get_attribute(env.module, :after_start) || quote do: fn (_, _)-> end
+    error_handler = Module.get_attribute(env.module, :error_handler) |> build_error_handler
 
-    handlers = Enum.map(functions,
+    function_handlers = Enum.map(functions,
       fn({fn_name, delegate}) ->
         build_handler(thrift_meta, struct_module, fn_name, delegate, overrides.functions) end)
 
@@ -163,11 +208,13 @@ defmodule Rift.Server do
 
       unquote(Rift.Callbacks.default_to_erlang)
       unquote(Rift.Callbacks.default_to_elixir)
-      unquote_splicing(handlers)
+      unquote_splicing(function_handlers)
 
       def handle_function(name, args) do
         raise "Handler #{inspect(name)} #{inspect(args)} Not Implemented"
       end
+
+      unquote(error_handler)
     end
   end
 

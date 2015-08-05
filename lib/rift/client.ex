@@ -182,6 +182,20 @@ defmodule Rift.Client do
         GenServer.start_link(__MODULE__, {host, port})
       end
 
+      def handle_call({:disconnect, _args}, _parent, client=%Client{client: thrift_client}) do
+        :thrift_client.close(thrift_client)
+        {:reply, :ok, %{client | client: nil}}
+      end
+
+      def handle_call({:reconnect, _args}, _parent, client=%Client{client: nil}) do
+        {:reply, :ok, Client.new(client.connect)}
+      end
+
+      def handle_call({:reconnect, _args}, _parent, client=%Client{client: thrift_client}) do
+        :thrift_client.close(thrift_client)
+        {:reply, :ok, Client.new(client.connect)}
+      end
+
       unquote_splicing(client_functions)
 
       def handle_call({call_name, args}, _parent, client) do
@@ -191,6 +205,10 @@ defmodule Rift.Client do
 
       defp call_thrift(client, call_name, args) do
         call_thrift(client, call_name, args, 0)
+      end
+
+      defp call_thrift(%Client{client: nil}, _, _, _) do
+        {:error, :disconnected}
       end
 
       defp call_thrift(client, call_name, args, retry_count)
@@ -224,6 +242,14 @@ defmodule Rift.Client do
                                 port,
                                 unquote(thrift_client_module),
                                 unquote(opts))
+      end
+
+      def disconnect do
+        GenServer.call(__MODULE__, {:disconnect, []})
+      end
+
+      def reconnect do
+        GenServer.call(__MODULE__, {:reconnect, []})
       end
 
       defp to_host(hostname) when is_list(hostname) do

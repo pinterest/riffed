@@ -1,6 +1,8 @@
 /_build
 /deps
+/log
 erl_crash.dump
 *.ez
 src
 *.swp
+.DS_Store

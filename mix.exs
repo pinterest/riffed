@@ -15,7 +15,7 @@ defmodule Rift.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger, :thrift]]
+    [applications: [:thrift, :lager]]
   end
 
   # Dependencies can be Hex packages:
@@ -31,7 +31,8 @@ defmodule Rift.Mixfile do
     [
         {:thrift, git: "ssh://git@phabricator.pinadmin.com/diffusion/EXT/elixir-thrift.git", submodules: true},
         {:meck, "~> 0.8.2"},
-        {:mock, github: "jjh42/mock"}
+        {:mock, github: "jjh42/mock"},
+        {:lager, github: "basho/lager"}
     ]
   end
 end

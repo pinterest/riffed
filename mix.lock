@@ -1,3 +1,5 @@
-%{"meck": {:hex, :meck, "0.8.3"},
+%{"goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "64864ba7fcf40988361340e48680b49a2c2938cf", [tag: "0.1.7"]},
+  "lager": {:git, "git://github.com/basho/lager.git", "cbf6679c6a693772fd1629c9cdc093e4c6c4ebf8", []},
+  "meck": {:hex, :meck, "0.8.3"},
   "mock": {:git, "git://github.com/jjh42/mock.git", "5a6bb6dd70ccc54997dda72f18f0ab85138c1253", []},
   "thrift": {:git, "ssh://git@phabricator.pinadmin.com/diffusion/EXT/elixir-thrift.git", "4cc47d4e43fea2d51b8da8a4ebb86e948e30e964", [submodules: true]}}
