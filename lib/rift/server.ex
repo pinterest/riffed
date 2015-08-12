@@ -126,7 +126,10 @@ defmodule Rift.Server do
         rsp = unquote(delegate_call)
         |> unquote(struct_module).to_erlang(unquote(overridden_type))
 
-        {:reply, rsp}
+        case rsp do
+          :ok -> :ok
+          _ -> {:reply, rsp}
+        end
       end
     end
   end
