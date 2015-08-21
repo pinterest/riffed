@@ -1,5 +1,5 @@
 %{"earmark": {:hex, :earmark, "0.1.17"},
-  "ex_doc": {:hex, :ex_doc, "0.7.3"},
+  "ex_doc": {:hex, :ex_doc, "0.8.1"},
   "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "64864ba7fcf40988361340e48680b49a2c2938cf", [tag: "0.1.7"]},
   "lager": {:git, "git://github.com/basho/lager.git", "cbf6679c6a693772fd1629c9cdc093e4c6c4ebf8", []},
   "meck": {:hex, :meck, "0.8.3"},

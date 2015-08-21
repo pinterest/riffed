@@ -1,7 +1,7 @@
 /_build
 /deps
 /log
-/doc
+/doc/generated
 erl_crash.dump
 *.ez
 src
