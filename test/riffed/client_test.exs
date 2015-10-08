@@ -3,7 +3,7 @@ defmodule ClientTest do
   import Mock
 
   defmodule Client do
-    use Rift.Client, structs: Models,
+    use Riffed.Client, structs: Models,
     client_opts: [host: "localhost",
                   port: 2112,
                   framed: true,

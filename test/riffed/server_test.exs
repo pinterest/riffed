@@ -2,7 +2,7 @@ defmodule ServerTest do
   use ExUnit.Case
 
   defmodule Server do
-    use Rift.Server, service: :server_thrift,
+    use Riffed.Server, service: :server_thrift,
     structs: Data,
     auto_build_structs: true,
     functions: [config: &ServerTest.FakeHandler.config/2,
@@ -81,7 +81,7 @@ defmodule ServerTest do
   end
 
   defmodule ServerAfterStartDefined do
-    use Rift.Server, service: :server_thrift,
+    use Riffed.Server, service: :server_thrift,
     structs: ServerAfterStartDefined.Models,
     functions: [],
     server: {
@@ -100,7 +100,7 @@ defmodule ServerTest do
   end
 
   defmodule ServerAfterStartNoop do
-    use Rift.Server, service: :server_thrift,
+    use Riffed.Server, service: :server_thrift,
     structs: ServerAfterStartNoop.Models,
     functions: [],
     server: {
@@ -116,7 +116,7 @@ defmodule ServerTest do
   end
 
   defmodule ServerAfterStartNotDefined do
-    use Rift.Server, service: :server_thrift,
+    use Riffed.Server, service: :server_thrift,
     structs: ServerAfterStartNotDefined.Models,
     functions: [],
     server: {
@@ -128,7 +128,7 @@ defmodule ServerTest do
   end
 
   defmodule ServerAfterStartError do
-    use Rift.Server, service: :server_thrift,
+    use Riffed.Server, service: :server_thrift,
     structs: ServerAfterStartError.Models,
     functions: [],
     server: {

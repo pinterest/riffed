@@ -1,8 +1,8 @@
-defmodule RiftTutorial.Mixfile do
+defmodule RiffedTutorial.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :rift_tutorial,
+    [app: :riffed_tutorial,
      version: "0.0.1",
      elixir: "~> 1.0",
      build_embedded: Mix.env == :prod,
@@ -17,7 +17,7 @@ defmodule RiftTutorial.Mixfile do
   # Type `mix help compile.app` for more information
   def application do
     [applications: [:logger],
-     mod: {RiftTutorial, []}]
+     mod: {RiffedTutorial, []}]
   end
 
   # Dependencies can be Hex packages:
@@ -30,6 +30,8 @@ defmodule RiftTutorial.Mixfile do
   #
   # Type `mix help deps` for more examples and options
   defp deps do
-    [{:rift, github: "pinterest/rift", tag: "0.1", submodules: true}]
+    [
+      {:riffed, github: "pinterest/riffed", tag: "0.1", submodules: true}
+    ]
   end
 end

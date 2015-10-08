@@ -1,12 +1,12 @@
-defmodule Rift.Client do
+defmodule Riffed.Client do
   @moduledoc ~S"""
   Provides a client wrapper for the `:thrift_client` erlang module.
 
   ## Usage
-  The Erlang Thrift client implementation doesn't provide useful Elixir mappings, nor does it gracefully handle socket termination. Rift's wrapper does, dutifully converting between Elixir and thrift for you.
+  The Erlang Thrift client implementation doesn't provide useful Elixir mappings, nor does it gracefully handle socket termination. Riffed's wrapper does, dutifully converting between Elixir and thrift for you.
 
       defmodule Client do
-        use Rift.Client, structs: Models,
+        use Riffed.Client, structs: Models,
         client_opts: [host: "localhost",
                       port: 1234567,
                       framed: true,
@@ -26,18 +26,18 @@ defmodule Rift.Client do
         enumerize_struct(User, state: UserState)
       end
 
-  In the above example, you can see that we've imported the functions `configure`, `create`, `update`, and `delete`. Rift generates helper functions in the `Client` module that convert to and from Elixir. To use the client, simply invoke:
+  In the above example, you can see that we've imported the functions `configure`, `create`, `update`, and `delete`. Riffed generates helper functions in the `Client` module that convert to and from Elixir. To use the client, simply invoke:
 
       Client.start_link
 
       Client.configure("config", 234)
       Client.create(Models.user.new(first_name: "Stinky", last_name: "Stinkman")
 
-  The Elixir bitstrings will be automatically converted to erlang char lists when being sent to the thrift client, and char lists from the client will be automatically converted to bitstrings when returned *by* the thrift client. Rift looks at your thrift definitions to find out when this should happen, so it's safe.
+  The Elixir bitstrings will be automatically converted to erlang char lists when being sent to the thrift client, and char lists from the client will be automatically converted to bitstrings when returned *by* the thrift client. Riffed looks at your thrift definitions to find out when this should happen, so it's safe.
   """
-  import Rift.MacroHelpers
-  import Rift.ThriftMeta, only: [extract: 2]
-  alias Rift.ThriftMeta.Meta, as: Meta
+  import Riffed.MacroHelpers
+  import Riffed.ThriftMeta, only: [extract: 2]
+  alias Riffed.ThriftMeta.Meta, as: Meta
 
   defmacro __using__(opts) do
     struct_module_name = opts[:structs]
@@ -46,24 +46,24 @@ defmodule Rift.Client do
     functions = opts[:import]
 
     quote do
-      use Rift.Callbacks
-      use Rift.Enumeration
+      use Riffed.Callbacks
+      use Riffed.Enumeration
 
       @struct_module unquote(struct_module_name)
       @client_opts unquote(client_opts)
       @thrift_module unquote(thrift_module)
       @functions unquote(functions)
       @auto_import_structs unquote(Keyword.get(opts, :auto_import_structs, true))
-      @before_compile Rift.Client
+      @before_compile Riffed.Client
     end
   end
 
   defp build_client_function(thrift_metadata, struct_module, function_name, overrides) do
     function_meta = Meta.metadata_for_function(thrift_metadata, function_name)
     param_meta = function_meta[:params]
-    reply_meta = function_meta[:reply] |> Rift.Struct.to_rift_type_spec
+    reply_meta = function_meta[:reply] |> Riffed.Struct.to_riffed_type_spec
 
-    reply_meta = Rift.Enumeration.get_overridden_type(function_name, :return_type, overrides, reply_meta)
+    reply_meta = Riffed.Enumeration.get_overridden_type(function_name, :return_type, overrides, reply_meta)
 
     arg_list = build_arg_list(length(param_meta))
     {:{}, _, list_args} = build_handler_tuple_args(param_meta)
@@ -93,7 +93,7 @@ defmodule Rift.Client do
   end
 
   defmacro __before_compile__(env) do
-    overrides = Rift.Enumeration.get_overrides(env.module).functions
+    overrides = Riffed.Enumeration.get_overrides(env.module).functions
     opts = Module.get_attribute(env.module, :client_opts)
     struct_module = Module.get_attribute(env.module, :struct_module)
     thrift_client_module = Module.get_attribute(env.module, :thrift_module)
@@ -116,9 +116,9 @@ defmodule Rift.Client do
     if Module.get_attribute(env.module, :auto_import_structs) do
       struct_module = quote do
         defmodule unquote(struct_module) do
-          use Rift.Struct, unquote(Meta.structs_to_keyword(thrift_metadata))
-          unquote_splicing(Rift.Callbacks.reconstitute(env.module))
-          unquote_splicing(Rift.Enumeration.reconstitute(env.module))
+          use Riffed.Struct, unquote(Meta.structs_to_keyword(thrift_metadata))
+          unquote_splicing(Riffed.Callbacks.reconstitute(env.module))
+          unquote_splicing(Riffed.Enumeration.reconstitute(env.module))
         end
       end
     else

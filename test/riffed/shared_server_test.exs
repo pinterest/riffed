@@ -2,11 +2,11 @@ defmodule SharedTests do
   use ExUnit.Case
 
   defmodule AccountModels do
-    use Rift.Struct, account_types: [:Preferences, :Account]
+    use Riffed.Struct, account_types: [:Preferences, :Account]
   end
 
   defmodule PrefServer do
-    use Rift.Server, service: :shared_service_thrift,
+    use Riffed.Server, service: :shared_service_thrift,
     auto_import_structs: false,
     structs: AccountModels,
     functions: [
@@ -23,7 +23,7 @@ defmodule SharedTests do
   end
 
   defmodule AccountServer do
-    use Rift.Server, service: :shared_service_thrift,
+    use Riffed.Server, service: :shared_service_thrift,
     auto_import_structs: false,
     structs: AccountModels,
     functions: [

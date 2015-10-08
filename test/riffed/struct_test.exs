@@ -2,7 +2,7 @@ defmodule StructTest do
   use ExUnit.Case
 
   defmodule Structs do
-    use Rift.Struct, struct_types: [
+    use Riffed.Struct, struct_types: [
             :Inner,
             :Nested,
             :NeedsFixup,

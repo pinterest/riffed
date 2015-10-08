@@ -1,4 +1,4 @@
-defmodule Rift.Callbacks do
+defmodule Riffed.Callbacks do
   @moduledoc ~S"""
   Provides callback support when converting between Erlang and Elixir structs.
 
@@ -41,8 +41,8 @@ defmodule Rift.Callbacks do
   defmacro __using__(_opts) do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
     quote do
-      require Rift.Callbacks
-      import Rift.Callbacks, only: [callback: 3]
+      require Riffed.Callbacks
+      import Riffed.Callbacks, only: [callback: 3]
     end
   end
 
@@ -58,7 +58,7 @@ defmodule Rift.Callbacks do
     |> Enum.map(&reconstitute_callback/1)
   end
 
-  defp reconstitute_callback(callback=%Rift.Callbacks.Callback{}) do
+  defp reconstitute_callback(callback=%Riffed.Callbacks.Callback{}) do
     quote do
       callback(unquote(callback.name), unquote(callback.guard)) do
         unquote(callback.body)

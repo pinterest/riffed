@@ -2,7 +2,7 @@ defmodule IntegrationTest do
   use ExUnit.Case
 
   defmodule IntegServer do
-    use Rift.Server, service: :server_thrift,
+    use Riffed.Server, service: :server_thrift,
     structs: IntegServer.Models,
     functions: [getUserStates: &IntegServer.Handlers.get_user_states/1,
                 echoString: &IntegServer.Handlers.echo_string/1],
@@ -37,7 +37,7 @@ defmodule IntegrationTest do
   end
 
   defmodule ServerWithErrorHandler do
-    use Rift.Server, service: :error_handler_thrift,
+    use Riffed.Server, service: :error_handler_thrift,
     structs: ServerWithErrorHandler.Models,
     functions: [],
     server: {
@@ -54,7 +54,7 @@ defmodule IntegrationTest do
   end
 
   defmodule EasyClient do
-    use Rift.Client,
+    use Riffed.Client,
     structs: EasyClient.Models,
     client_opts: [host: "localhost",
                   port: 22831,
@@ -65,7 +65,7 @@ defmodule IntegrationTest do
   end
 
   defmodule EnumerizedClient do
-    use Rift.Client,
+    use Riffed.Client,
     structs: EnumerizedClient.Models,
     client_opts: [host: "localhost",
                   port: 22831,
@@ -83,7 +83,7 @@ defmodule IntegrationTest do
   end
 
   defmodule HostAndPortClient do
-    use Rift.Client,
+    use Riffed.Client,
     structs: HostAndPortClient.Models,
     client_opts: [
             framed: true,
@@ -94,7 +94,7 @@ defmodule IntegrationTest do
   end
 
   defmodule ErrorHandlerClient do
-    use Rift.Client,
+    use Riffed.Client,
     structs: ErrorHandlerClient.Models,
     client_opts: [host: "localhost",
                   port: 11337,

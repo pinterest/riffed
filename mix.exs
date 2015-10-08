@@ -1,13 +1,13 @@
-defmodule Rift.Mixfile do
+defmodule Riffed.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :rift,
-     name: "Rift",
+    [app: :riffed,
+     name: "Riffed",
      version: "0.1.0",
      elixir: "~> 1.0",
      deps: deps,
-     compilers: Mix.compilers ++ [:thrift],
+     compilers: [:thrift |Mix.compilers],
      erlc_paths: ["src", "ext/thrift/lib/erl/src"],
      erlc_include_path: "ext/thrift/lib/erl/include",
      thrift_files: Mix.Utils.extract_files(["thrift"], [:thrift]),
@@ -33,6 +33,7 @@ defmodule Rift.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [
+        {:thrift, git: "git@github.com:pinterest/elixir-thrift.git", tag: "v1.0.0", submodules: true},
         {:meck, "~> 0.8.2"},
         {:mock, github: "jjh42/mock"},
         {:lager, github: "basho/lager"},

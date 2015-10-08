@@ -1,4 +1,4 @@
-defmodule Rift.ThriftMeta do
+defmodule Riffed.ThriftMeta do
   @moduledoc false
   defmodule Meta do
     @moduledoc false

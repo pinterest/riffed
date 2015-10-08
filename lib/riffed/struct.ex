@@ -1,4 +1,4 @@
-defmodule Rift.Struct do
+defmodule Riffed.Struct do
   @moduledoc ~S"""
   Parses your thrift files and builds some Elixir-y structs and conversion functions for you.
 
@@ -20,7 +20,7 @@ defmodule Rift.Struct do
   You import them thusly:
 
       defmodule Request do
-        use Rift.Struct, request_types: [:Request, :User]
+        use Riffed.Struct, request_types: [:Request, :User]
       end
 
   Note that the `use` statement takes a keyword list whose names are thrift modules and whose values are
@@ -58,13 +58,13 @@ defmodule Rift.Struct do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
 
     quote do
-      use Rift.Callbacks
-      use Rift.Enumeration
-      require Rift.Struct
-      import Rift.Struct
+      use Riffed.Callbacks
+      use Riffed.Enumeration
+      require Riffed.Struct
+      import Riffed.Struct
 
       @thrift_options unquote(opts)
-      @before_compile Rift.Struct
+      @before_compile Riffed.Struct
     end
   end
 
@@ -156,30 +156,30 @@ defmodule Rift.Struct do
   end
 
   @doc false
-  def to_rift_type_spec({:set, item_type}) do
-    {:set, to_rift_type_spec(item_type)}
+  def to_riffed_type_spec({:set, item_type}) do
+    {:set, to_riffed_type_spec(item_type)}
   end
 
-  def to_rift_type_spec({:list, item_type}) do
-    {:list, to_rift_type_spec(item_type)}
+  def to_riffed_type_spec({:list, item_type}) do
+    {:list, to_riffed_type_spec(item_type)}
   end
 
-  def to_rift_type_spec({:map, key_type, val_type}) do
-    {:map, {to_rift_type_spec(key_type), to_rift_type_spec(val_type)}}
+  def to_riffed_type_spec({:map, key_type, val_type}) do
+    {:map, {to_riffed_type_spec(key_type), to_riffed_type_spec(val_type)}}
   end
 
-  def to_rift_type_spec(other) do
+  def to_riffed_type_spec(other) do
     other
   end
 
   defp get_overridden_type_spec(container_module, struct_module, thrift_type_spec, field_name) do
-    overrides = Rift.Enumeration.get_overrides(container_module).structs
+    overrides = Riffed.Enumeration.get_overrides(container_module).structs
     |> Map.get(struct_module)
 
     if overrides do
-      Keyword.get(overrides, field_name, thrift_type_spec) |> to_rift_type_spec
+      Keyword.get(overrides, field_name, thrift_type_spec) |> to_riffed_type_spec
     else
-      to_rift_type_spec(thrift_type_spec)
+      to_riffed_type_spec(thrift_type_spec)
     end
   end
 
@@ -268,12 +268,12 @@ defmodule Rift.Struct do
           end)
       end)
 
-    callbacks = Rift.Callbacks.build(env.module)
-    enums = Rift.Enumeration.build(env.module)
+    callbacks = Riffed.Callbacks.build(env.module)
+    enums = Riffed.Enumeration.build(env.module)
 
     erlang_casts = []
     if build_cast_to_erlang do
-      erlang_casts = Rift.Enumeration.build_cast_return_value_to_erlang(env.module)
+      erlang_casts = Riffed.Enumeration.build_cast_return_value_to_erlang(env.module)
     end
 
     quote do
@@ -283,8 +283,8 @@ defmodule Rift.Struct do
       unquote_splicing(enums.conversion_fns)
       unquote_splicing(struct_data.struct_converters)
       unquote_splicing(erlang_casts)
-      unquote(Rift.Callbacks.default_to_elixir)
-      unquote(Rift.Callbacks.default_to_erlang)
+      unquote(Riffed.Callbacks.default_to_elixir)
+      unquote(Riffed.Callbacks.default_to_erlang)
       unquote(callbacks)
     end
   end

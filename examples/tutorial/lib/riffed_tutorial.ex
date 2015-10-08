@@ -1,4 +1,4 @@
-defmodule RiftTutorial do
+defmodule RiffedTutorial do
   use Application
 
   # See http://elixir-lang.org/docs/stable/elixir/Application.html
@@ -7,14 +7,14 @@ defmodule RiftTutorial do
     import Supervisor.Spec, warn: false
 
     children = [
-      worker(RiftTutorial.Server, []),
-      worker(RiftTutorial.Client, []),
-      worker(RiftTutorial.Handler, [])
+      worker(RiffedTutorial.Server, []),
+      worker(RiffedTutorial.Client, []),
+      worker(RiffedTutorial.Handler, [])
     ]
 
     # See http://elixir-lang.org/docs/stable/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: RiftTutorial.Supervisor]
+    opts = [strategy: :one_for_one, name: RiffedTutorial.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end

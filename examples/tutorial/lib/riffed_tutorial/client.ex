@@ -1,7 +1,7 @@
-defmodule RiftTutorial.Client do
-  use Rift.Client,
+defmodule RiffedTutorial.Client do
+  use Riffed.Client,
   auto_import_structs: false,
-  structs: RiftTutorial.Models,
+  structs: RiffedTutorial.Models,
   client_opts: [
     host: "localhost",
     port: 2112,

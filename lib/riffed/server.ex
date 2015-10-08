@@ -1,14 +1,14 @@
-defmodule Rift.Server do
+defmodule Riffed.Server do
   @moduledoc ~S"""
   Provides a server and datastructure mappings to help you build thrift servers in Elixir. Macros
   dutifully work behind the scenes to give you near-seamless access to Thrift structures.
 
-  *Rift: Bridging the divide between Thrift and Elixir.*
+  *Riffed: Bridging the divide between Thrift and Elixir.*
 
   ## Usage
 
   The Thrift erlang implementation doesn't provide the ability to enumerate all defined RPC functions,
-  so you need to tell Rift which functions you'd like to expose in your server. After doing this, the
+  so you need to tell Riffed which functions you'd like to expose in your server. After doing this, the
   Thrift metadata is interrogated and your return types are figured out and built for you. They're
   available for you to use in a module of your choosing.
 
@@ -24,7 +24,7 @@ defmodule Rift.Server do
 
 
         defmodule Server do
-          use Rift.Server, service: :database_thrift,
+          use Riffed.Server, service: :database_thrift,
           structs: DB,
           functions: [select: &Handlers.select/2,
                       insert: &Handlers.insert/2,
@@ -77,18 +77,18 @@ defmodule Rift.Server do
 
 
   """
-  import Rift.MacroHelpers
-  alias Rift.ThriftMeta, as: ThriftMeta
-  alias Rift.ThriftMeta.Meta, as: Meta
+  import Riffed.MacroHelpers
+  alias Riffed.ThriftMeta, as: ThriftMeta
+  alias Riffed.ThriftMeta.Meta, as: Meta
 
   defmacro __using__(opts) do
     quote do
-      use Rift.Callbacks
-      use Rift.Enumeration
+      use Riffed.Callbacks
+      use Riffed.Enumeration
 
-      require Rift.Server
-      require Rift.Struct
-      import Rift.Server
+      require Riffed.Server
+      require Riffed.Struct
+      import Riffed.Server
 
       @thrift_module unquote(opts[:service])
       @functions unquote(opts[:functions])
@@ -97,7 +97,7 @@ defmodule Rift.Server do
       @after_start unquote(Macro.escape(opts[:after_start]))
       @error_handler unquote(opts[:error_handler])
       @auto_import_structs unquote(Keyword.get(opts, :auto_import_structs, true))
-      @before_compile Rift.Server
+      @before_compile Riffed.Server
     end
   end
 
@@ -114,11 +114,11 @@ defmodule Rift.Server do
 
     function_meta = Meta.metadata_for_function(meta, thrift_fn_name)
     params_meta = function_meta[:params]
-    reply_meta = function_meta[:reply] |> Rift.Struct.to_rift_type_spec
+    reply_meta = function_meta[:reply] |> Riffed.Struct.to_riffed_type_spec
     tuple_args = build_handler_tuple_args(params_meta)
     delegate_call = build_delegate_call(delegate_fn)
     casts = build_casts(thrift_fn_name, struct_module, params_meta, fn_overrides, :to_elixir)
-    overridden_type = Rift.Enumeration.get_overridden_type(thrift_fn_name, :return_type, fn_overrides, reply_meta)
+    overridden_type = Riffed.Enumeration.get_overridden_type(thrift_fn_name, :return_type, fn_overrides, reply_meta)
 
     quote do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
@@ -169,7 +169,7 @@ defmodule Rift.Server do
     thrift_meta = ThriftMeta.extract(thrift_module, function_names)
 
     {server, server_opts} = Module.get_attribute(env.module, :server)
-    overrides = Rift.Enumeration.get_overrides(env.module)
+    overrides = Riffed.Enumeration.get_overrides(env.module)
 
     after_start = Module.get_attribute(env.module, :after_start) || quote do: fn (_, _)-> end
     error_handler = Module.get_attribute(env.module, :error_handler) |> build_error_handler
@@ -184,9 +184,9 @@ defmodule Rift.Server do
       struct_module = quote do
         defmodule unquote(struct_module) do
           @build_cast_to_erlang true
-          use Rift.Struct, unquote(structs_keyword)
-          unquote_splicing(Rift.Callbacks.reconstitute(env.module))
-          unquote_splicing(Rift.Enumeration.reconstitute(env.module))
+          use Riffed.Struct, unquote(structs_keyword)
+          unquote_splicing(Riffed.Callbacks.reconstitute(env.module))
+          unquote_splicing(Riffed.Enumeration.reconstitute(env.module))
         end
       end
     else
@@ -207,8 +207,8 @@ defmodule Rift.Server do
         {:ok, server_pid}
       end
 
-      unquote(Rift.Callbacks.default_to_erlang)
-      unquote(Rift.Callbacks.default_to_elixir)
+      unquote(Riffed.Callbacks.default_to_erlang)
+      unquote(Riffed.Callbacks.default_to_elixir)
       unquote_splicing(function_handlers)
 
       def handle_function(name, args) do

@@ -1,5 +1,5 @@
-defmodule RiftTutorial.Models do
-  use Rift.Struct, tutorial_types: [:User]
+defmodule RiffedTutorial.Models do
+  use Riffed.Struct, tutorial_types: [:User]
 
   defenum UserState do
     :active -> 0

@@ -1,6 +1,6 @@
-defmodule RiftTutorial.Handler do
+defmodule RiffedTutorial.Handler do
   use GenServer
-  alias RiftTutorial.Models
+  alias RiffedTutorial.Models
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, Keyword.merge(opts, name: __MODULE__))

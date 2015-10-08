@@ -1,4 +1,4 @@
-defmodule Rift.MacroHelpers do
+defmodule Riffed.MacroHelpers do
   @moduledoc false
   def build_arg_list(size) when is_integer(size) do
     case size do
@@ -24,8 +24,8 @@ defmodule Rift.MacroHelpers do
   defp build_arg_cast(function_name, struct_module, param_meta, overrides, cast_function) do
     {index, param_type} = param_meta
     param_name = :"arg_#{abs(index)}"
-    param_type = Rift.Struct.to_rift_type_spec(param_type)
-    param_type = Rift.Enumeration.get_overridden_type(function_name,
+    param_type = Riffed.Struct.to_riffed_type_spec(param_type)
+    param_type = Riffed.Enumeration.get_overridden_type(function_name,
                                                       param_name,
                                                       overrides,
                                                       param_type)

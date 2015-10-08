@@ -3,11 +3,11 @@ defmodule SharedClientTest do
   import Mock
 
   defmodule ClientModels do
-    use Rift.Struct, account_types: [:Account, :Preferences]
+    use Riffed.Struct, account_types: [:Account, :Preferences]
   end
 
   defmodule AccountClient do
-    use Rift.Client, structs: ClientModels,
+    use Riffed.Client, structs: ClientModels,
     client_opts: [host: "localhost",
                   port: 3112,
                   framed: true,
@@ -22,7 +22,7 @@ defmodule SharedClientTest do
   end
 
   defmodule PrefClient do
-    use Rift.Client, structs: ClientModels,
+    use Riffed.Client, structs: ClientModels,
     client_opts: [host: "localhost",
                   port: 3112,
                   framed: true,

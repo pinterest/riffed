@@ -1,11 +1,11 @@
-defmodule Rift.Enumeration do
+defmodule Riffed.Enumeration do
   @moduledoc """
   Provides enumeration semantics, but with an Elixir flavor.
 
   ## Usage
 
   Thrift enums are not handled well by the erlang thrift bindings. They're turned into
-  ints and left to fend for themselves. This is no way to treat an Enum. The `Rift.Enum`
+  ints and left to fend for themselves. This is no way to treat an Enum. The `Riffed.Enum`
   module brings them back into the fold so you can have familiar enumeration semantics.
 
   To (re)define an enum, use the defenum macro like this:
@@ -20,7 +20,7 @@ defmodule Rift.Enumeration do
 
       enumerize_struct(User, state: UserState)
 
-  Rift will then change the state field into a UserState enum whenever it deserializes a User
+  Riffed will then change the state field into a UserState enum whenever it deserializes a User
   struct. Similarly, UserState enums will be serialized as ints.
 
 
@@ -62,8 +62,8 @@ defmodule Rift.Enumeration do
     Module.register_attribute(__CALLER__.module, :enum_arg_conversion, accumulate: true)
     Module.register_attribute(__CALLER__.module, :enum_arg_conversion_orig, accumulate: true)
     quote do
-      require Rift.Enumeration
-      import Rift.Enumeration, only: [defenum: 2,
+      require Riffed.Enumeration
+      import Riffed.Enumeration, only: [defenum: 2,
                                       enumerize_struct: 2,
                                       enumerize_function: 1,
                                       enumerize_function: 2,
@@ -96,7 +96,7 @@ defmodule Rift.Enumeration do
   end
 
   @doc """
-  Tells Rift that a struct has enums that need to be converted.
+  Tells Riffed that a struct has enums that need to be converted.
   Assume you have a struct that represents a user and they have a field named
   state that is a UserState enum.
 
@@ -108,7 +108,7 @@ defmodule Rift.Enumeration do
   end
 
   @doc """
-  Tells rift to convert argument of the named function.
+  Tells Riffed to convert argument of the named function.
   The `fn_call` argument is a function signature to match, and you mark arguments to
   be converted to enums. For example:
 
@@ -123,7 +123,7 @@ defmodule Rift.Enumeration do
   end
 
   @doc """
-  Tells rift to convert both arguments and return values of the named function to a struct.
+  Tells Riffed to convert both arguments and return values of the named function to a struct.
   The `fn_call` argument is a function signature to match, and you mark arguments to be
   converted into enums. You can also provide a `returns:` keyword to mark the return value of
   the function to be converted into an enum. For example:

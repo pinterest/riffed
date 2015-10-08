@@ -1,8 +1,8 @@
 # Getting Started
 
-This guide will bring you step-by-step through building your first Rift server and client. The service will allow for registering, fetching, and banning users. An example of the completed tutorial can be found in `examples/tutorial/`.
+This guide will bring you step-by-step through building your first Riffed server and client. The service will allow for registering, fetching, and banning users. An example of the completed tutorial can be found in `examples/tutorial/`.
 
-We'll assume you already have a Mix project to work with called `rift_tutorial`. Feel free to go create one if you don't, using `mix new rift_tutorial --sup`. Then add Rift as a dependency:
+We'll assume you already have a Mix project to work with called `rift_tutorial`. Feel free to go create one if you don't, using `mix new rift_tutorial --sup`. Then add Riffed as a dependency:
 
 ```elixir
 def deps do
@@ -25,7 +25,7 @@ def project do
 end
 ```
 
-This tells Rift to look for `.thrift` files in the `thrift/` folder in your project. So go ahead and create a file `thrift/tutorial.thrift` with the following:
+This tells Riffed to look for `.thrift` files in the `thrift/` folder in your project. So go ahead and create a file `thrift/tutorial.thrift` with the following:
 
 ```thrift
 enum UserState {
@@ -53,14 +53,14 @@ service Tutorial {
 Now go ahead and create the file `lib/rift_tutorial/server.ex`. We'll start with the contents of the file:
 
 ```elixir
-defmodule RiftTutorial.Server do
-  use Rift.Server,
+defmodule RiffedTutorial.Server do
+  use Riffed.Server,
   service: :tutorial_thrift,
-  structs: RiftTutorial.Models,
-  functions: [registerUser: &RiftTutorial.Handler.register_user/1,
-              getUser: &RiftTutorial.Handler.get_user/1,
-              getState: &RiftTutorial.Handler.get_state/1,
-              setState: &RiftTutorial.Handler.set_state/2
+  structs: RiffedTutorial.Models,
+  functions: [registerUser: &RiffedTutorial.Handler.register_user/1,
+              getUser: &RiffedTutorial.Handler.get_user/1,
+              getState: &RiffedTutorial.Handler.get_state/1,
+              setState: &RiffedTutorial.Handler.set_state/2
   ],
   server: {:thrift_socket_server,
            port: 2112,
@@ -83,18 +83,18 @@ defmodule RiftTutorial.Server do
 end
 ```
 
-Now let's stop and look at each of the keywords passed to `use Rift.Server` to understand what's happening.
+Now let's stop and look at each of the keywords passed to `use Riffed.Server` to understand what's happening.
 
 Keyword | Explanation
 ------- | -----------
-`:service` | This tells Rift which `.thrift` file to look at to find the service definition for this service. Notice this matches with the name of the service inside the thrift file, with an `_thrift` appended to the end.
-`:structs` | This tells Rift how to namespace the structs defined by our service. In this case, this results in the creation of the struct `%RiftTutorial.Models.User{}`.
-`:functions` | This is a keyword list that maps the thrift service method name to a method that handles it. In this case, we have yet to define the module `RiftTutorial.Handler`, however we will shortly.
-`:server` | This tells Rift which type of thrift server to use. For details on the different types, as well as all the additional parameters you can give here, you will need to consult the [Erlang Thrift Implementation](https://github.com/apache/thrift/tree/master/lib/erl).
+`:service` | This tells Riffed which `.thrift` file to look at to find the service definition for this service. Notice this matches with the name of the service inside the thrift file, with an `_thrift` appended to the end.
+`:structs` | This tells Riffed how to namespace the structs defined by our service. In this case, this results in the creation of the struct `%RiffedTutorial.Models.User{}`.
+`:functions` | This is a keyword list that maps the thrift service method name to a method that handles it. In this case, we have yet to define the module `RiffedTutorial.Handler`, however we will shortly.
+`:server` | This tells Riffed which type of thrift server to use. For details on the different types, as well as all the additional parameters you can give here, you will need to consult the [Erlang Thrift Implementation](https://github.com/apache/thrift/tree/master/lib/erl).
 
-Next, we see a `defenum` block. Elixir does not support any form of enumeration, and so this invokes some macros built into Rift for defining enums. Always ensure the ordering here matches with the ordering in your `.thrift` file. Well, actually the ordering is not important, but rather the values you assign are.
+Next, we see a `defenum` block. Elixir does not support any form of enumeration, and so this invokes some macros built into Riffed for defining enums. Always ensure the ordering here matches with the ordering in your `.thrift` file. Well, actually the ordering is not important, but rather the values you assign are.
 
-Lastly, there are two more macros `enumerize_struct` and `enumerize_function` which you use to tell Rift how your enum is used. Any fields, parameters, or return values must be enumerized so Rift will know how to convert between their base values and the enumerized values.
+Lastly, there are two more macros `enumerize_struct` and `enumerize_function` which you use to tell Riffed how your enum is used. Any fields, parameters, or return values must be enumerized so Riffed will know how to convert between their base values and the enumerized values.
 
 ## 3. Building the Handler
 
@@ -103,9 +103,9 @@ Now that the server is configured, the method calls need to be handled. This ste
 Create a file `lib/rift_tutorial/handler.ex` with the following contents:
 
 ```elixir
-defmodule RiftTutorial.Handler do
+defmodule RiffedTutorial.Handler do
   use GenServer
-  alias RiftTutorial.Models
+  alias RiffedTutorial.Models
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, Keyword.merge(opts, name: __MODULE__))
@@ -153,10 +153,10 @@ Notice the use of `Models.User.new` inside `register_user`. When creating instan
 The next step is to build a client to connect to our server. The client will be part of the same project, and in fact running on the same host, but for example purposes this is fine. Create the file `lib/rift_tutorial/client.ex` with the following contents:
 
 ```elixir
-defmodule RiftTutorial.Client do
-  use Rift.Client,
+defmodule RiffedTutorial.Client do
+  use Riffed.Client,
   auto_import_structs: false,
-  structs: RiftTutorial.Models,
+  structs: RiffedTutorial.Models,
   client_opts: [
     host: "localhost",
     port: 2112,
@@ -174,15 +174,15 @@ defmodule RiftTutorial.Client do
 end
 ```
 
-It's important to notice that we have used `auto_import_structs: false`, since otherwise the client will try to redefine `RiftTutorial.Models`. The server and client are using the same models, and so you only want them to be defined once.
+It's important to notice that we have used `auto_import_structs: false`, since otherwise the client will try to redefine `RiffedTutorial.Models`. The server and client are using the same models, and so you only want them to be defined once.
 
 ### Optional Step
 
 If you really want, you can set `auto_import_structs: false` on both the client and server modules, and define a new file containing the models directly in `lib/rift_tutorial/models.ex`:
 
 ```elixir
-defmodule RiftTutorial.Models do
-  use Rift.Struct, tutorial_types: [:User]
+defmodule RiffedTutorial.Models do
+  use Riffed.Struct, tutorial_types: [:User]
 
   defenum UserState do
     :active -> 0
@@ -202,9 +202,9 @@ The final step is to go into `lib/rift_tutorial.ex` and add your server, client,
 
 ```elixir
 children = [
-  worker(RiftTutorial.Server, []),
-  worker(RiftTutorial.Client, []),
-  worker(RiftTutorial.Handler, [])
+  worker(RiffedTutorial.Server, []),
+  worker(RiffedTutorial.Client, []),
+  worker(RiffedTutorial.Handler, [])
 ]
 ```
 
@@ -213,20 +213,20 @@ children = [
 That's it! Now let's test it out! Starting the application with `iex -S mix`, here is a sample run:
 
 ```elixir
-iex> RiftTutorial.Client.registerUser("tupac")
+iex> RiffedTutorial.Client.registerUser("tupac")
 0 # This is the newly created user id
 
-iex> RiftTutorial.Client.getState(0)
-%RiftTutorial.Models.UserState{ordinal: :active, value: 0}
+iex> RiffedTutorial.Client.getState(0)
+%RiffedTutorial.Models.UserState{ordinal: :active, value: 0}
 # This is how enums get displayed in the shell
 
-iex> RiftTutorial.Client.setState(0, RiftTutorial.Models.UserState.banned)
+iex> RiffedTutorial.Client.setState(0, RiffedTutorial.Models.UserState.banned)
 :ok
 
-iex> RiftTutorial.Client.getUser(0)
-%RiftTutorial.Models.User{id: 0,
- state: %RiftTutorial.Models.UserState{ordinal: :banned, value: 2},
+iex> RiffedTutorial.Client.getUser(0)
+%RiffedTutorial.Models.User{id: 0,
+ state: %RiffedTutorial.Models.UserState{ordinal: :banned, value: 2},
  username: "tupac"}
 ```
 
-Now that you've completed this Getting Started tutorial, feel free to explore the other documentation, and play around with creating your own Rift servers and clients. Happy hacking!
+Now that you've completed this Getting Started tutorial, feel free to explore the other documentation, and play around with creating your own Riffed servers and clients. Happy hacking!

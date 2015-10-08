@@ -1,12 +1,12 @@
-defmodule RiftTutorial.Server do
-  use Rift.Server,
+defmodule RiffedTutorial.Server do
+  use Riffed.Server,
   auto_import_structs: false,
   service: :tutorial_thrift,
-  structs: RiftTutorial.Models,
-  functions: [registerUser: &RiftTutorial.Handler.register_user/1,
-              getUser: &RiftTutorial.Handler.get_user/1,
-              getState: &RiftTutorial.Handler.get_state/1,
-              setState: &RiftTutorial.Handler.set_state/2
+  structs: RiffedTutorial.Models,
+  functions: [registerUser: &RiffedTutorial.Handler.register_user/1,
+              getUser: &RiffedTutorial.Handler.get_user/1,
+              getState: &RiffedTutorial.Handler.get_state/1,
+              setState: &RiffedTutorial.Handler.set_state/2
   ],
   server: {:thrift_socket_server,
            port: 2112,

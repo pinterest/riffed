@@ -1,29 +1,29 @@
-# Rift
+# Riffed
 ### Healing the rift between Elixir and Thrift.
 
-Thrift's Erlang implementation isn't very pleasant to use in Elixir. It prefers records to structs, littering your code with tuples. It swallows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Rift fixes this.
+Thrift's Erlang implementation isn't very pleasant to use in Elixir. It prefers records to structs, littering your code with tuples. It swallows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Riffed fixes this.
 
 
 ## Getting Started
 
-For a detailed guide on how to get started with Rift, and creating your first Rift server and client, see the [Getting Started Guide](https://github.com/pinterest/rift/tree/master/doc/Getting_Started.md). For a general summary of some of the features Rift provides, continue reading.
+For a detailed guide on how to get started with Riffed, and creating your first Riffed server and client, see the [Getting Started Guide](https://github.com/pinterest/rift/tree/master/doc/Getting_Started.md). For a general summary of some of the features Riffed provides, continue reading.
 
-You can also generate Rift documentation by running `mix docs`.
+You can also generate Riffed documentation by running `mix docs`.
 
-Rift Provides three modules, `Rift.Struct`, `Rift.Client`, and `Rift.Server` which will help you manage this impedence mismatch.
+Riffed Provides three modules, `Riffed.Struct`, `Riffed.Client`, and `Riffed.Server` which will help you manage this impedence mismatch.
 
 
-## Elixir-style structs with `Rift.Struct`
+## Elixir-style structs with `Riffed.Struct`
 
-`Rift.Struct` provides functionality for converting Thrift types into Elixir structs.
+`Riffed.Struct` provides functionality for converting Thrift types into Elixir structs.
 
-You tell `Rift.Struct` about your Erlang Thrift modules and which structs you would like to import. It then looks at the thrift files, parses their metadata and builds Elixir structs for you. It also creates `to_elixir` and `to_erlang` functions that will handle converting Erlang records into Elixir structs and vice versa.
+You tell `Riffed.Struct` about your Erlang Thrift modules and which structs you would like to import. It then looks at the thrift files, parses their metadata and builds Elixir structs for you. It also creates `to_elixir` and `to_erlang` functions that will handle converting Erlang records into Elixir structs and vice versa.
 
 Assuming you have a Thrift module called `pinterest_types` in your `src` directory:
 
 ```elixir
 defmodule Structs do
-  use Rift.Struct, pinterest_types: [:User, :Pin, :Board]
+  use Riffed.Struct, pinterest_types: [:User, :Pin, :Board]
 end
 ```
 
@@ -38,14 +38,14 @@ iex> Structs.to_elixir(user_tuple)
 %Structs.User{firstName: "Stinky", lastName: "Stinkman"}
 ```
 
-...but you'll rarely use the Struct module directly. Instead, you'll use the `Rift.Client` or `Rift.Server` modules.
+...but you'll rarely use the Struct module directly. Instead, you'll use the `Riffed.Client` or `Riffed.Server` modules.
 
-If your Thrift structs define default values for fields, these will be preserved in Elixir structs, using appropiate types. The only exception is that Rift cannot handle default values that reference other structs; the default value for these fields will always be `:undefined`.
+If your Thrift structs define default values for fields, these will be preserved in Elixir structs, using appropiate types. The only exception is that Riffed cannot handle default values that reference other structs; the default value for these fields will always be `:undefined`.
 
 
-## Generating Servers with `Rift.Server`
+## Generating Servers with `Riffed.Server`
 
-`Rift.Server` assumes you have a module that has a bunch of handler functions in it. When a thrift RPC is called, your parameters will be converted into Elixir structs and then passed in to one of your handler functions. Let's assume you have the following thrift defined:
+`Riffed.Server` assumes you have a module that has a bunch of handler functions in it. When a thrift RPC is called, your parameters will be converted into Elixir structs and then passed in to one of your handler functions. Let's assume you have the following thrift defined:
 
 ```thrift
 enum UserState {
@@ -74,7 +74,7 @@ You can set it up like this:
 
 ```elixir
 defmodule Server do
-  use Rift.Server,
+  use Riffed.Server,
   service: :pinterest_thrift,
   structs: Data,
   functions: [register: &ThriftHandlers.register/3,
@@ -91,20 +91,20 @@ defmodule Server do
                    recv_timeout: 3000,
                    keepalive: true]
           }
-  
+
   defenum UserState do
     :active -> 1
     :inactive -> 2
     :banned -> 3
   end
-  
+
   enumerize_struct User, state: UserState
   enumerize_function setUserState(_, UserState)
   enumerize_function getState(_), returns: UserState
 end
 
 defmodule ThriftHandlers do
-  
+
   def register(username, first_name, last_name) do
     # registration logic. Return a new user
     Data.User.new(username: username, firstName: "Stinky", lastName: "Stinkman")
@@ -122,7 +122,7 @@ defmodule ThriftHandlers do
       _ -> Data.UserState.inactive
     end
   end
-  
+
   def set_state(user=%Data.User{}, state=%Data.UserState{}) do
     ...
   end
@@ -130,24 +130,24 @@ defmodule ThriftHandlers do
 end
 ```
 
-`Rift.Server` is doing a bunch of work for you. It's investigating your thrift files and figuring out which structs need to be imported by looking at the parameters, exceptions and return values. It then makes a module that imports your structs (`Data` in this case) and builds code for the thrift server that takes an incoming thrift request, converts its parameters into Elixir representations and then calls your handler. Notice how the handlers in ThriftHandlers take structs as arguments and return structs. That's what Rift gets you.
+`Riffed.Server` is doing a bunch of work for you. It's investigating your thrift files and figuring out which structs need to be imported by looking at the parameters, exceptions and return values. It then makes a module that imports your structs (`Data` in this case) and builds code for the thrift server that takes an incoming thrift request, converts its parameters into Elixir representations and then calls your handler. Notice how the handlers in ThriftHandlers take structs as arguments and return structs. That's what Riffed gets you.
 
 These handler functions also process the values your code returns and hands them back to thrift.
 
-The above example also shows how to handle Thrift enums.  Due to the way thrift enums are handled by the erlang generator, there's no way for Rift to convert them into a friendly structure for you, so they need to be defined and pointed out to Rift. 
+The above example also shows how to handle Thrift enums.  Due to the way thrift enums are handled by the erlang generator, there's no way for Riffed to convert them into a friendly structure for you, so they need to be defined and pointed out to Riffed.
 
 The thrift server is configured in the server block. The first element of the tuple is the module of the server you wish to instantiate. In this case, we're using `thrift_socket_server`. The second element is a Keyword list of configuration options for the server. You cannot set the :name, :handler or :service params. The name and handler are set to the current module. The service is given as the thrift_module option.
 
 
-## Generating a client with `Rift.Client`
+## Generating a client with `Riffed.Client`
 
-Generating a client is similarly simple. `Rift.Client` just asks that you point it at the erlang module that was generated by thrift, tell it what the client's configuration is and tell it what functions you'd like to import. When that's done, it examines the thrift module, figures out what types you need, creates structs for them and generates helper functions for calling your thrift RPC calls.
+Generating a client is similarly simple. `Riffed.Client` just asks that you point it at the erlang module that was generated by thrift, tell it what the client's configuration is and tell it what functions you'd like to import. When that's done, it examines the thrift module, figures out what types you need, creates structs for them and generates helper functions for calling your thrift RPC calls.
 
 Assuming the same configuration above, the following block will generate a client:
 
 ```elixir
 defmodule RegisterClient do
-  use Rift.Client,
+  use Riffed.Client,
   structs: Models,
   client_opts: [host: "localhost", port: 1234, framed: true],
   service: :pinterest_thrift,
@@ -165,16 +165,16 @@ defmodule RegisterClient do
   enumerize_function getState(_), returns: UserState
 end
 ```
-     
-You start the client by calling start_link: 
 
-```elixir     
+You start the client by calling start_link:
+
+```elixir
 RegisterClient.start_link
 ```
-     
+
 You can then issue calls against the client:
-    
-```elixir    
+
+```elixir
 iex> user = RegisterClient.register("Stinky", "Stinkman")
 %Models.User{firstName: "Stinky", lastName: "Stinkman")
 
@@ -184,26 +184,26 @@ true
 iex> state = RegisterClient.getState(user)
 %Models.UserState{ordinal: :active, value: 1}
 ```
-     
+
 Clients support the same callbacks and enumeration transformations that the server suports, and they're configured identically.
 
 ## Sharing Structs
-Sometimes, you have common structs that are shared between services. Due to Rift auto-importing structs based on the server definition, Rift will duplicate shard structs. This auto-import feature can be disabled by specifying `auto_import_structs: false` when creating a client or server. You can then use Rift.Struct to build a struct module:
+Sometimes, you have common structs that are shared between services. Due to Riffed auto-importing structs based on the server definition, Riffed will duplicate shard structs. This auto-import feature can be disabled by specifying `auto_import_structs: false` when creating a client or server. You can then use Riffed.Struct to build a struct module:
 
 ```elixir
 defmodule SharedStructs do
-  use Rift.Struct, shared_types: [:User, :Account, :Profile]
+  use Riffed.Struct, shared_types: [:User, :Account, :Profile]
 end
 
 defmodule UserService do
-  use Rift.Server, service: :user_thrift,
+  use Riffed.Server, service: :user_thrift,
   auto_import_structs: false,
   structs: SharedStructs
   ...
 end
 
 defmodule ProfileService do
-  use Rift.Server, service: :profile_thrift,
+  use Riffed.Server, service: :profile_thrift,
   auto_import_structs: false,
   structs: SharedStructs
   ...
@@ -213,13 +213,13 @@ end
 
 ## Handling Thrift Enumerations
 
-Unfortunately, enumeration support in Erlang thrift code is lossy and because of this Rift can't tell where the enumerations you worked so tirelessly to define appear in the generated code. Because of this, you have to re-define them and tell Rift where they are; otherwise, all you'll see are integers. 
+Unfortunately, enumeration support in Erlang thrift code is lossy and because of this Riffed can't tell where the enumerations you worked so tirelessly to define appear in the generated code. Because of this, you have to re-define them and tell Riffed where they are; otherwise, all you'll see are integers.
 
-To do this, Rift supports a syntax to re-define enumerations, and this syntax is available when you use `Rift.Server` and `Rift.Client`.
+To do this, Riffed supports a syntax to re-define enumerations, and this syntax is available when you use `Riffed.Server` and `Riffed.Client`.
 
 The following examples assume these RPC calls and enumeration:
 
-```thrift    
+```thrift
 enum DayOfTheWeek {
   SUNDAY,
   MONDAY,
@@ -233,7 +233,7 @@ void setCreatedDay(1: User user, 2: DayOfTheWeek day);
 DayOfTheWeek getCreatedDay(1: User user);
 ```
 
-First off, you'll need to re-define your enumeration. To do that, use the defenum macro inside of your `Rift.Server` or `Rift.Client` module:
+First off, you'll need to re-define your enumeration. To do that, use the defenum macro inside of your `Riffed.Server` or `Riffed.Client` module:
 
 ```elixir
 defenum DayOfTheWeek do
@@ -248,14 +248,14 @@ end
 ```
 
 ##### Converting enumerations in structs
-Now you'll need to tell Rift where this enum appears in your other data structures. To do that, use the enumerize_struct macro:
+Now you'll need to tell Riffed where this enum appears in your other data structures. To do that, use the enumerize_struct macro:
 
 ```elixir
 enumerize_struct User, sign_up_day: DayOfTheWeek, last_login_day: DayOfTheWeek
 ```
-     
+
 Now all Users will have their sign_up_day and last_login_day fields automatically converted to enumerations.
-     
+
 ##### Converting enumerations in functions
 
 If the enumeration is the argument or return value of a RPC call, you'll need to identify it there too. Use the `enumerize_function` macro:
@@ -273,7 +273,7 @@ Complex types are also handled in both arguments and return types:
 
 ```elixir
 enumerize_function setStatesForUser({:map, {:i64, UserState}})
-```   
+```
 
 ##### Using enumerations in code
 Enumerations are elixir structs whose modules support converting between the struct and integer representation. This shows how to convert integers to enumerations and vice-versa
