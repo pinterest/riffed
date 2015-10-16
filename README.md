@@ -6,7 +6,7 @@ Thrift's Erlang implementation isn't very pleasant to use in Elixir. It prefers 
 
 ## Getting Started
 
-For a detailed guide on how to get started with Riffed, and creating your first Riffed server and client, see the [Getting Started Guide](https://github.com/pinterest/rift/tree/master/doc/Getting_Started.md). For a general summary of some of the features Riffed provides, continue reading.
+For a detailed guide on how to get started with Riffed, and creating your first Riffed server and client, see the [Getting Started Guide](https://github.com/pinterest/riffed/blob/master/doc/GettingStarted.md). For a general summary of some of the features Riffed provides, continue reading.
 
 You can also generate Riffed documentation by running `mix docs`.
 
@@ -188,7 +188,7 @@ iex> state = RegisterClient.getState(user)
 Clients support the same callbacks and enumeration transformations that the server suports, and they're configured identically.
 
 ## Sharing Structs
-Sometimes, you have common structs that are shared between services. Due to Riffed auto-importing structs based on the server definition, Riffed will duplicate shard structs. This auto-import feature can be disabled by specifying `auto_import_structs: false` when creating a client or server. You can then use Riffed.Struct to build a struct module:
+Sometimes, you have common structs that are shared between services. Due to Riffed auto-importing structs based on the server definition, Riffed will duplicate shared structs. This auto-import feature can be disabled by specifying `auto_import_structs: false` when creating a client or server. You can then use Riffed.Struct to build a struct module:
 
 ```elixir
 defmodule SharedStructs do
@@ -213,7 +213,7 @@ end
 
 ## Handling Thrift Enumerations
 
-Unfortunately, enumeration support in Erlang thrift code is lossy and because of this Riffed can't tell where the enumerations you worked so tirelessly to define appear in the generated code. Because of this, you have to re-define them and tell Riffed where they are; otherwise, all you'll see are integers.
+Unfortunately, enumeration support in Erlang thrift code is lossy and because of this Riffed can't tell where the enumerations you worked so tirelessly to define appear in the generated code. Unfortunately, you have to re-define them and tell Riffed where they are; otherwise, all you'll see are integers.
 
 To do this, Riffed supports a syntax to re-define enumerations, and this syntax is available when you use `Riffed.Server` and `Riffed.Client`.
 
