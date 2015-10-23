@@ -7,7 +7,7 @@ defmodule Riffed.Mixfile do
      version: "0.1.0",
      elixir: "~> 1.0",
      deps: deps,
-     compilers: [:thrift |Mix.compilers],
+     compilers: compilers(Mix.env),
      erlc_paths: ["src", "ext/thrift/lib/erl/src"],
      erlc_include_path: "ext/thrift/lib/erl/include",
      thrift_files: Mix.Utils.extract_files(["thrift"], [:thrift]),
@@ -20,6 +20,14 @@ defmodule Riffed.Mixfile do
   # Type `mix help compile.app` for more information
   def application do
     [applications: [:thrift, :exlager]]
+  end
+
+  def compilers(:test) do
+    [:thrift | Mix.compilers]
+  end
+
+  def compilers(_) do
+    Mix.compilers
   end
 
   # Dependencies can be Hex packages:
