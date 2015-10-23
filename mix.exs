@@ -19,7 +19,7 @@ defmodule Riffed.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:thrift, :lager]]
+    [applications: [:thrift, :exlager]]
   end
 
   # Dependencies can be Hex packages:
@@ -36,7 +36,7 @@ defmodule Riffed.Mixfile do
         {:thrift, git: "git@github.com:pinterest/elixir-thrift.git", tag: "1.0.0", submodules: true},
         {:meck, "~> 0.8.2"},
         {:mock, github: "jjh42/mock"},
-        {:lager, github: "basho/lager"},
+        {:exlager, github: "khia/exlager"},
         {:earmark, "~> 0.1", only: :dev},
         {:ex_doc, "~> 0.8", only: :dev}
     ]

@@ -1,7 +1,8 @@
 %{"earmark": {:hex, :earmark, "0.1.17"},
   "ex_doc": {:hex, :ex_doc, "0.8.1"},
+  "exlager": {:git, "git://github.com/khia/exlager.git", "dca404300b04d2ad8f42e9ecc6f4c757e169071f", []},
   "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "64864ba7fcf40988361340e48680b49a2c2938cf", [tag: "0.1.7"]},
-  "lager": {:git, "git://github.com/basho/lager.git", "cbf6679c6a693772fd1629c9cdc093e4c6c4ebf8", []},
+  "lager": {:git, "https://github.com/basho/lager.git", "4d2ec8c701e1fa2d386f92f2b83b23faf8608ac3", []},
   "meck": {:hex, :meck, "0.8.3"},
   "mock": {:git, "git://github.com/jjh42/mock.git", "5a6bb6dd70ccc54997dda72f18f0ab85138c1253", []},
   "thrift": {:git, "git@github.com:pinterest/elixir-thrift.git", "4cc47d4e43fea2d51b8da8a4ebb86e948e30e964", [tag: "1.0.0", submodules: true]}}
