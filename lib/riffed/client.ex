@@ -32,6 +32,7 @@ defmodule Riffed.Client do
 
       Client.configure("config", 234)
       Client.create(Models.user.new(first_name: "Stinky", last_name: "Stinkman")
+      Client.close
 
   The Elixir bitstrings will be automatically converted to erlang char lists when being sent to the thrift client, and char lists from the client will be automatically converted to bitstrings when returned *by* the thrift client. Riffed looks at your thrift definitions to find out when this should happen, so it's safe.
   """
@@ -230,8 +231,12 @@ defmodule Riffed.Client do
                                 unquote(opts))
       end
 
-      def disconnect do
+      def close do
         GenServer.call(__MODULE__, {:disconnect, []})
+      end
+
+      def close(pid) do
+        GenServer.call(pid, {:disconnect, []})
       end
 
       def reconnect do
