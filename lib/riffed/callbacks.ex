@@ -73,6 +73,10 @@ defmodule Riffed.Callbacks do
         to_convert
       end
 
+      def to_elixir(:undefined, _) do
+        nil
+      end
+
       def to_elixir(to_convert, :string) when is_list(to_convert) do
         List.to_string(to_convert)
       end
@@ -114,6 +118,11 @@ defmodule Riffed.Callbacks do
   @doc false
   def default_to_erlang do
     quote do
+
+      def to_erlang(nil, _) do
+        :undefined
+      end
+
       def to_erlang(bitstring, :string) when is_bitstring(bitstring) do
         bitstring
       end

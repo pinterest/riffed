@@ -46,9 +46,9 @@ defmodule IntegrationTest do
             framed: true,
             socket_opts: [recv_timeout: 1000]
         },
-    error_handler: &ServerWithErrorHandler.handle_error/2
+    error_handler: &ServerWithErrorHandler.on_failure/2
 
-    def handle_error(_, :closed) do
+    def on_failure(_, _) do
       File.write!("rift_error_test.log", "The client left us in the dust")
     end
   end
@@ -90,7 +90,7 @@ defmodule IntegrationTest do
             retries: 3
         ],
     service: :server_thrift,
-    import: [:getUserStates]
+    import: [:getUserStates, :echoString]
   end
 
   defmodule ErrorHandlerClient do
@@ -138,8 +138,8 @@ defmodule IntegrationTest do
 
   test "Can attach own error handler for when client disconnects" do
     refute File.exists?("rift_error_test.log")
-    ErrorHandlerClient.start_link
-    ErrorHandlerClient.disconnect
+    {:ok, client} = ErrorHandlerClient.start_link
+    ErrorHandlerClient.close(client)
     # Sleep for a bit while the server writes to file
     :timer.sleep(100)
     assert File.read!("rift_error_test.log") == "The client left us in the dust"
@@ -155,16 +155,22 @@ defmodule IntegrationTest do
 
   test "Disconnected client should return :disconnected if calls are made" do
     EasyClient.start_link
-    EasyClient.disconnect
+    EasyClient.close
     assert :disconnected == EasyClient.getUserStates(["foo"])
   end
 
   test "Can reconnect client after disconnecting" do
     EasyClient.start_link
-    EasyClient.disconnect
+    EasyClient.close
     EasyClient.reconnect
     rsp = EasyClient.getUserStates(["foo"])
     assert 1 == rsp["foo"]
+  end
+
+  test "Can send empty strings" do
+    {:ok, client} = HostAndPortClient.start_link("localhost", 22831)
+
+    assert nil == HostAndPortClient.echoString(client, nil)
   end
 
 end
