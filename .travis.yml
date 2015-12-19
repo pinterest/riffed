@@ -3,7 +3,7 @@ elixir:
   - 1.1.1
 otp_release:
   - 18.1
-sudo: false
+sudo: required
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install libboost-dev libboost-test-dev libboost-program-options-dev libevent-dev automake libtool flex bison pkg-config g++ libssl-dev
