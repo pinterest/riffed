@@ -1,3 +1,0 @@
-[submodule "ext/thrift"]
-	path = ext/thrift
-	url = https://github.com/apache/thrift.git
