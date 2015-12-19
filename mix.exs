@@ -41,7 +41,7 @@ defmodule Riffed.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [
-        {:thrift, git: "git@github.com:pinterest/elixir-thrift.git", tag: "1.0.0", submodules: true},
+        {:thrift, github: "pinterest/elixir-thrift", tag: "1.0.0", submodules: true},
         {:meck, "~> 0.8.2"},
         {:mock, github: "jjh42/mock"},
         {:exlager, github: "khia/exlager"},
