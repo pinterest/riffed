@@ -45,7 +45,7 @@ defmodule SharingTests do
                                        sendUpdates: false} = account.preferences
     inactive_status = Status.Status.inactive
 
-    assert inactive_status = elixirized.status
+    assert ^inactive_status = elixirized.status
   end
 
   test "it should be able to convert elixir structs into erlang records" do

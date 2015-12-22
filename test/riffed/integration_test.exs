@@ -105,8 +105,14 @@ defmodule IntegrationTest do
   end
 
   setup do
-    IntegServer.start_link
-    ServerWithErrorHandler.start_link
+    {:ok, integ_server_pid} = IntegServer.start_link
+    {:ok, error_server_pid} = ServerWithErrorHandler.start_link
+
+    on_exit fn ->
+      Utils.ensure_pid_stopped(integ_server_pid)
+      Utils.ensure_pid_stopped(error_server_pid)
+    end
+
     :ok
   end
 

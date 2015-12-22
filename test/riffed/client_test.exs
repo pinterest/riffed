@@ -166,7 +166,7 @@ defmodule ClientTest do
   test_with_mock "it should use callbacks to convert things to erlang", :thrift_client,
   [call: &EchoServer.call/3] do
 
-    response = Client.setLoudUser(Models.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN"))
+    Client.setLoudUser(Models.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN"))
     {call_name, [user_tuple]} = EchoServer.last_call
 
     assert call_name == :setLoudUser
