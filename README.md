@@ -1,7 +1,6 @@
 # Riffed
 
-[![Build Status](https://travis-ci.org/pinterest/riffed.svg?branch=master)](https://travis-ci.org/pinterest/riffed)
-
+[![Build Status](https://travis-ci.org/pinterest/riffed.svg?branch=master)](https://travis-ci.org/pinterest/riffed)		
 ### Healing the rift between Elixir and Thrift.
 
 Thrift's Erlang implementation isn't very pleasant to use in Elixir. It prefers records to structs, littering your code with tuples. It swallows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Riffed fixes this.
@@ -212,6 +211,50 @@ defmodule ProfileService do
   ...
 end
 ```
+
+## Advanced Struct Packaging
+
+Often, thrift files will make use of `include` statements to share structs. This can present a namespacing problem if you're running several thrift servers or clients that all make use of a common thrift file. This is because each server or client will import the struct separately and produce incompatible structs. 
+
+This can be mitigated by using shared structs in a common module and controlling how they're imported. To control the destination module, use the `dest_modules` keyword dict:
+
+```elixir
+defmodule Models do 
+  use Rift.Struct, dest_modules: [common_types: Common, 
+	                               server_types: Server,
+	                               client_types: Client],
+	                common_types: [:RequestContext, :User],
+	                server_types: [:AccessControlList],
+	                client_types: [:UserList]
+
+  defenum Common.UserState do
+    :inactive -> 1
+    :active -> 2
+    :core -> 3
+  end
+
+  enumerize_struct Common.User, state: Common.UserState
+end
+
+defmodule Server do 
+  use Rift.Server, service: :server_thrift,
+  auto_import_structs: false,
+  structs: Models
+  ...
+end
+
+defmodule Client do
+  use Rift.Client, 
+  auto_import_structs: false,
+  structs: Models
+  ...
+end
+```
+
+The above configuration will produce three different modules, `Models.Common`, `Models.Server` and `Models.Client`. The `Models` module 
+is capable of serializing and deserializing all the types defined in the three submodules, and should be used as your `:structs` module in your client and servers. 
+
+As you can see above, you can also namespace enumerations.
 
 
 ## Handling Thrift Enumerations
