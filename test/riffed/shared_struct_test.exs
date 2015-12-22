@@ -28,18 +28,20 @@ defmodule SharingTests do
   test "it should be able to convert imported structs to elixir" do
     created_at = 12277112
     updated_at = 27721771
-    account_list = {:AccountList, [{:Account, 1234, {:Preferences, 1234, false}, 'foo32@bar.com', created_at, updated_at}], 1}
+    user_id = 1234
+
+    account_list = {:AccountList, [{:Account, user_id, {:Preferences, user_id, false}, 'foo32@bar.com', created_at, updated_at}], 1}
 
     elixirized = SharedStructs.to_elixir(account_list, {:struct, {:shared_service_types, :AccountList}})
 
     assert %AccountList{} = elixirized
     %AccountList{accounts: [account]} = elixirized
 
-    assert %AccountStructs.Account{userId: 1234,
+    assert %AccountStructs.Account{userId: ^user_id,
                                    email: "foo32@bar.com",
                                    createdAt: ^created_at,
                                    updatedAt: ^updated_at} = account
-    assert %AccountStructs.Preferences{userId: 1234,
+    assert %AccountStructs.Preferences{userId: ^user_id,
                                        sendUpdates: false} = account.preferences
     inactive_status = Status.Status.inactive
 

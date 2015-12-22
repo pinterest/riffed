@@ -40,7 +40,7 @@ defmodule Riffed.Struct do
 
   ## Controlling destination modules
 
-  If you have a complex thrift hirearchy, or a group of shared thrift structs,
+  If you have a complex thrift hierarchy, or a group of shared thrift structs,
   importing into a single module can be ugly. In that case, you can control the
   destination module of one (or all) of your imported structs by specifying the
   `dest_modules` key. For example:
