@@ -1,3 +1,7 @@
+const i32 INT_CONSTANT = 10
+const string STRING_CONSTANT = "i am a string"
+
+
 enum TimePeriod {
   DAY,
   WEEK,

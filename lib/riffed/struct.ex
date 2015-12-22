@@ -38,6 +38,30 @@ defmodule Riffed.Struct do
       iex> Request.to_erlang(user)
       {:User, 3221, "Richard", "Feynman"}
 
+  ## Controlling destination modules
+
+  If you have a complex thrift hirearchy, or a group of shared thrift structs,
+  importing into a single module can be ugly. In that case, you can control the
+  destination module of one (or all) of your imported structs by specifying the
+  `dest_modules` key. For example:
+
+      defmodule ImportExample do
+        use Riffed.Struct, dest_modules: [common_types: Common,
+                                          user_types: User,
+                                          account_types: Account],
+            common_types: [:RequestContext],
+            user_types: [:User, :Location, :Reputation],
+            account_types: [:Profile, :BillingInfo]
+      end
+
+  After Riffed runs, the ImportExample module will have three submodules,
+  `Common`, `User`, and `Account`. `Common` will contain the `RequestContext`,
+  `User` will contain `User`, `Location`, and `Reputation` and `Account` will
+  contain `Profile` and `BillingInfo`.
+
+  Any servers or clients that wish to use these should set their structs module
+  to `ImportExample`.
+
   ### Note:
   Keys not set will have the initial value of `:undefined`.
 
@@ -56,7 +80,7 @@ defmodule Riffed.Struct do
 
   defmacro __using__(opts) do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
-
+    {module_mapping, opts} = Keyword.pop(opts, :dest_modules, Keyword.new)
     quote do
       use Riffed.Callbacks
       use Riffed.Enumeration
@@ -64,6 +88,7 @@ defmodule Riffed.Struct do
       import Riffed.Struct
 
       @thrift_options unquote(opts)
+      @dest_modules unquote(module_mapping)
       @before_compile Riffed.Struct
     end
   end
@@ -128,14 +153,14 @@ defmodule Riffed.Struct do
     |> String.to_atom
   end
 
-  defp build_struct_and_conversion_function(struct_data=%StructData{}, container_module, struct_module_name, thrift_module)  do
+  defp build_struct_and_conversion_function(struct_data=%StructData{}, root_module, container_module, struct_module_name, thrift_module)  do
     {:struct, meta} = :erlang.apply(thrift_module, :struct_info_ext, [struct_module_name])
     struct_args = build_struct_args(meta)
     fq_module_name = Module.concat([container_module, struct_module_name])
     record_name = downcase_first(struct_module_name)
     record_file = "src/#{thrift_module}.hrl"
-    tuple_to_elixir = build_tuple_to_elixir(thrift_module, container_module, fq_module_name, meta, struct_module_name)
-    struct_to_erlang = build_struct_to_erlang(container_module, fq_module_name, meta, struct_module_name, record_name)
+    tuple_to_elixir = build_tuple_to_elixir(thrift_module, root_module, fq_module_name, meta, struct_module_name)
+    struct_to_erlang = build_struct_to_erlang(root_module, fq_module_name, meta, struct_module_name, record_name)
 
     struct_module = quote do
       defmodule unquote(fq_module_name) do
@@ -151,7 +176,6 @@ defmodule Riffed.Struct do
         end
       end
     end
-
     StructData.append(struct_data, struct_module, tuple_to_elixir, struct_to_erlang)
   end
 
@@ -258,13 +282,22 @@ defmodule Riffed.Struct do
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :thrift_options)
     build_cast_to_erlang = Module.get_attribute(env.module, :build_cast_to_erlang)
-    struct_data = Enum.reduce(
-      options,
+    module_mapping = Module.get_attribute(env.module, :dest_modules, Keyword.new)
+
+    struct_data = options
+    |> Enum.reduce(
       %StructData{},
       fn({thrift_module, struct_names}, data) ->
+        curr_module = env.module
+        dest_module = case Keyword.get(module_mapping, thrift_module, env.module) do
+                        ^curr_module ->
+                          curr_module
+                        override_module ->
+                          Module.concat([env.module, override_module])
+                      end
         Enum.reduce(struct_names, data,
           fn(struct_name, data) ->
-            build_struct_and_conversion_function(data, env.module, struct_name, thrift_module)
+            build_struct_and_conversion_function(data, env.module, dest_module, struct_name, thrift_module)
           end)
       end)
 

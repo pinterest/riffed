@@ -294,8 +294,7 @@ defmodule Riffed.Enumeration do
   end
 
   defp build_enum_to_erlang_function(container_module, enum_decl) do
-    {{_, _, [enum_name]}, _} = enum_decl
-
+    enum_name = extract_enum_name(enum_decl)
     enum_alias = {:__aliases__, [alias: false], [enum_name]}
     fq_enum_name = Module.concat(container_module, enum_name)
     quote do
@@ -310,14 +309,22 @@ defmodule Riffed.Enumeration do
   end
 
   defp build_erlang_to_enum_function(container_module, enum_decl) do
-    {{_, _, [enum_name]}, _} = enum_decl
-
+    enum_name = extract_enum_name(enum_decl)
     enum_alias = {:__aliases__, [alias: false], [enum_name]}
     fq_enum_name = Module.concat(container_module, enum_name)
     quote do
       def to_elixir(erlang_value, unquote(enum_alias)) do
         unquote(fq_enum_name).value(erlang_value)
       end
+    end
+  end
+
+  defp extract_enum_name(enum_decl) do
+    case enum_decl do
+      {{_, _, [enum_name]}, _} ->
+        enum_name
+      {{_, _, enum_name}, _} when is_list(enum_name) ->
+        Module.concat(enum_name)
     end
   end
 end
