@@ -214,7 +214,7 @@ end
 
 Often, thrift files will make use of `include` statements to share structs. This can present a namespacing problem if you're running several thrift servers or clients that all make use of a common thrift file. This is because each server or client will import the struct separately and produce incompatible structs. 
 
-This can be mititgated by using shared structs in a common module and controlling how they're imported. To control the destination module, use the `dest_modules` keyword dict:
+This can be mitigated by using shared structs in a common module and controlling how they're imported. To control the destination module, use the `dest_modules` keyword dict:
 
 ```elixir
 defmodule Models do 
