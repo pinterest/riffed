@@ -1,7 +1,4 @@
 # Riffed
-
-[![Build Status](https://travis-ci.org/pinterest/riffed.svg?branch=master)](https://travis-ci.org/pinterest/riffed)
-
 ### Healing the rift between Elixir and Thrift.
 
 Thrift's Erlang implementation isn't very pleasant to use in Elixir. It prefers records to structs, littering your code with tuples. It swallows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Riffed fixes this.
@@ -221,20 +218,20 @@ This can be mititgated by using shared structs in a common module and controllin
 
 ```elixir
 defmodule Models do 
-	use Rift.Struct, dest_modules: [common_types: Common, 
-	                                server_types: Server,
-	                                client_types: Client],
-	                 common_types: [:RequestContext, :User],
-	                 server_types: [:AccessControlList],
-	                 client_types: [:UserList]
+  use Rift.Struct, dest_modules: [common_types: Common, 
+	                               server_types: Server,
+	                               client_types: Client],
+	                common_types: [:RequestContext, :User],
+	                server_types: [:AccessControlList],
+	                client_types: [:UserList]
 
-	defenum Common.UserState do
-	  :inactive -> 1
-	  :active -> 2
-	  :core -> 3
-	end
+  defenum Common.UserState do
+	 :inactive -> 1
+	 :active -> 2
+	 :core -> 3
+  end
 
-	enumerize_struct Common.User, state: Common.UserState
+  enumerize_struct Common.User, state: Common.UserState
 end
 
 defmodule Server do 
@@ -245,10 +242,10 @@ defmodule Server do
 end
 
 defmodule Client do
-	use Rift.Client, 
-	auto_import_structs: false,
-	structs: Models
-	...
+  use Rift.Client, 
+  auto_import_structs: false,
+  structs: Models
+  ...
 end
 ```
 
