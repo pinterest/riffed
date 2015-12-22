@@ -226,9 +226,9 @@ defmodule Models do
 	                client_types: [:UserList]
 
   defenum Common.UserState do
-	 :inactive -> 1
-	 :active -> 2
-	 :core -> 3
+    :inactive -> 1
+    :active -> 2
+    :core -> 3
   end
 
   enumerize_struct Common.User, state: Common.UserState
