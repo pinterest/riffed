@@ -1,5 +1,5 @@
 defmodule ServerTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   defmodule Server do
     use Riffed.Server, service: :server_thrift,
@@ -66,6 +66,10 @@ defmodule ServerTest do
       Agent.start_link(fn -> %{} end, name: __MODULE__)
     end
 
+    def stop do
+      Utils.ensure_agent_stopped(__MODULE__)
+    end
+
     def get(key) do
       Agent.get(__MODULE__, fn map -> Map.get(map, key) end)
     end
@@ -110,7 +114,7 @@ defmodule ServerTest do
             socket_opts: [recv_timeout: 1000]
         },
 
-    after_start: fn(server_pid, server_opts) ->
+    after_start: fn(_server_pid, _server_opts) ->
     end
 
   end
@@ -138,7 +142,7 @@ defmodule ServerTest do
             socket_opts: [recv_timeout: 1000]
         },
 
-    after_start: fn(server_pid, server_opts) ->
+    after_start: fn(server_pid, _server_opts) ->
       server_pid.fail()
     end
 
@@ -147,6 +151,10 @@ defmodule ServerTest do
   defmodule FakeHandler do
     def start_link do
       Agent.start_link(fn -> [] end, name: __MODULE__)
+    end
+
+    def stop do
+      Utils.ensure_agent_stopped(__MODULE__)
     end
 
     def args do
@@ -254,8 +262,13 @@ defmodule ServerTest do
   end
 
   setup do
-    State.start_link
-    FakeHandler.start_link
+    {:ok, _} = State.start_link
+    {:ok, _} = FakeHandler.start_link
+
+    on_exit fn ->
+      State.stop
+      FakeHandler.stop
+    end
     :ok
   end
 
@@ -264,20 +277,29 @@ defmodule ServerTest do
   end
 
   test "it should execute after_start successfully" do
-    ServerAfterStartDefined.start_link
+    {:ok, pid} = ServerAfterStartDefined.start_link
+
     assert :success == State.get(:after_start)
     assert 22831 == State.get(:after_start_port)
     refute nil == State.get(:after_start_pid)
+
+    Utils.ensure_pid_stopped(pid)
   end
 
   test "it should execute successfully with after_start as noop" do
-    ServerAfterStartNoop.start_link
+    {:ok, pid} = ServerAfterStartNoop.start_link
+
     assert Enum.empty?(State.get_all())
+
+    Utils.ensure_pid_stopped(pid)
   end
 
   test "it should execute successfully when after_start is not defined" do
-    ServerAfterStartNotDefined.start_link
+    {:ok, pid} = ServerAfterStartNotDefined.start_link
+
     assert Enum.empty?(State.get_all())
+
+    Utils.ensure_pid_stopped(pid)
   end
 
   test "it should fail when after_start implementation fails to execute" do
