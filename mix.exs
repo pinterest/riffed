@@ -13,8 +13,11 @@ defmodule Riffed.Mixfile do
      thrift_files: Mix.Utils.extract_files(["thrift"], [:thrift]),
      docs: [output: "doc/generated"],
      test_coverage: [tool: ExCoveralls],
-     preferred_cli_env: ["coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test]
-    ]
+     preferred_cli_env: ["coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test],
+
+     # Hex
+     description: description,
+     package: package]
   end
 
   # Configuration for the OTP application
@@ -59,16 +62,10 @@ defmodule Riffed.Mixfile do
     """
   end
 
-  defp project_url do
-    """
-    https://github.com/pinterest/riffed
-    """
-  end
-
   defp package do
     [files: ["config", "lib", "test", "thrift", "mix.exs", "README.md", "LICENSE"],
      maintainers: ["Jon Parise", "Steve Cohen"],
      licenses: ["Apache 2.0"],
-     links: %{"GitHub" => project_url}]
+     links: %{"GitHub" => "https://github.com/pinterest/riffed"}]
   end
 end
