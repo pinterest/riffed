@@ -171,7 +171,7 @@ defmodule Riffed.Server do
     {server, server_opts} = Module.get_attribute(env.module, :server)
     overrides = Riffed.Enumeration.get_overrides(env.module)
 
-    after_start = Module.get_attribute(env.module, :after_start) || quote do: fn (_, _)-> end
+    after_start = Module.get_attribute(env.module, :after_start) || quote do: fn (_, _) -> nil end
     error_handler = Module.get_attribute(env.module, :error_handler) |> build_error_handler
 
     function_handlers = Enum.map(functions,
