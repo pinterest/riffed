@@ -1,6 +1,9 @@
 # Riffed
 
-[![Build Status](https://travis-ci.org/pinterest/riffed.svg?branch=master)](https://travis-ci.org/pinterest/riffed)		
+[![Build Status](https://travis-ci.org/pinterest/riffed.svg?branch=master)](https://travis-ci.org/pinterest/riffed)
+[![Coverage Status](https://coveralls.io/repos/pinterest/riffed/badge.svg?branch=master)](https://coveralls.io/r/pinterest/riffed?branch=master)
+
+
 ### Healing the rift between Elixir and Thrift.
 
 Thrift's Erlang implementation isn't very pleasant to use in Elixir. It prefers records to structs, littering your code with tuples. It swallows enumerations you've defined, banishing them to the realm of wind and ghosts. It requires that you write a bunch of boilerplate handler code, and client code that's not very Elixir-y. Riffed fixes this.
