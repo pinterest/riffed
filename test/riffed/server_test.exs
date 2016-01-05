@@ -115,6 +115,7 @@ defmodule ServerTest do
         },
 
     after_start: fn(_server_pid, _server_opts) ->
+      nil
     end
 
   end
