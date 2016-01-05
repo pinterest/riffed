@@ -7,3 +7,5 @@ erl_crash.dump
 src
 *.swp
 .DS_Store
+*.*~
+*~

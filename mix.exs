@@ -11,7 +11,9 @@ defmodule Riffed.Mixfile do
      erlc_paths: ["src", "ext/thrift/lib/erl/src"],
      erlc_include_path: "ext/thrift/lib/erl/include",
      thrift_files: Mix.Utils.extract_files(["thrift"], [:thrift]),
-     docs: [output: "doc/generated"]
+     docs: [output: "doc/generated"],
+     test_coverage: [tool: ExCoveralls],
+     preferred_cli_env: ["coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test]
     ]
   end
 
@@ -46,7 +48,27 @@ defmodule Riffed.Mixfile do
         {:mock, github: "jjh42/mock"},
         {:exlager, github: "khia/exlager"},
         {:earmark, "~> 0.1", only: :dev},
-        {:ex_doc, "~> 0.8", only: :dev}
+        {:ex_doc, "~> 0.8", only: :dev},
+        {:excoveralls, github: "parroty/excoveralls", tag: "v0.4.3", override: true, only: :test}
     ]
+  end
+
+  defp description do
+    """
+    Riffed Provides idiomatic Elixir bindings for Apache Thrift
+    """
+  end
+
+  defp project_url do
+    """
+    https://github.com/pinterest/riffed
+    """
+  end
+
+  defp package do
+    [files: ["config", "lib", "test", "thrift", "mix.exs", "README.md", "LICENSE"],
+     maintainers: ["Jon Parise", "Steve Cohen"],
+     licenses: ["Apache 2.0"],
+     links: %{"GitHub" => project_url}]
   end
 end
