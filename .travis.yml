@@ -12,7 +12,7 @@ before_install:
   - cd thrift-0.9.3 && ./configure --with-erlang --without-cpp --without-csharp --without-java --without-nodejs --without-lua --without-python --without-perl --without-php --without-php_extension --without-ruby --without-haskell --without-go --without-haxe --without-d && sudo make install && cd ..
   - mix local.hex --force
 script:
-  - MIX_ENV=test mix test
+  - MIX_ENV=test mix test --trace
 after_script:
   - MIX_ENV=test mix coveralls.travis
 cache:

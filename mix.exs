@@ -17,7 +17,10 @@ defmodule Riffed.Mixfile do
 
      # Hex
      description: description,
-     package: package]
+     package: package,
+     source_url: project_url,
+     homepage_url: project_url
+    ]
   end
 
   # Configuration for the OTP application
@@ -35,15 +38,6 @@ defmodule Riffed.Mixfile do
     Mix.compilers
   end
 
-  # Dependencies can be Hex packages:
-  #
-  #   {:mydep, "~> 0.3.0"}
-  #
-  # Or git/path repositories:
-  #
-  #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
-  #
-  # Type `mix help deps` for more examples and options
   defp deps do
     [
         {:thrift, github: "pinterest/elixir-thrift", tag: "1.0.0", submodules: true},
@@ -62,10 +56,17 @@ defmodule Riffed.Mixfile do
     """
   end
 
+  defp project_url do
+     """
+     https://github.com/pinterest/riffed
+     """
+  end
+
   defp package do
     [files: ["config", "lib", "test", "thrift", "mix.exs", "README.md", "LICENSE"],
      maintainers: ["Jon Parise", "Steve Cohen"],
      licenses: ["Apache 2.0"],
-     links: %{"GitHub" => "https://github.com/pinterest/riffed"}]
+     links: %{"GitHub" => project_url}
+    ]
   end
 end
