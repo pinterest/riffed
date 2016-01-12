@@ -1,8 +1,10 @@
 # Riffed
 
+![Version](https://img.shields.io/github/tag/pinterest/riffed.svg)
 [![Build Status](https://travis-ci.org/pinterest/riffed.svg?branch=master)](https://travis-ci.org/pinterest/riffed)
 [![Coverage Status](https://coveralls.io/repos/pinterest/riffed/badge.svg?branch=master&service=github)](https://coveralls.io/github/pinterest/riffed?branch=master)
-
+![Issues](https://img.shields.io/github/issues/pinterest/riffed.svg)
+![License](https://img.shields.io/badge/license-Apache%202-blue.svg)
 
 ### Healing the rift between Elixir and Thrift.
 
