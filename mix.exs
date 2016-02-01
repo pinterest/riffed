@@ -46,7 +46,7 @@ defmodule Riffed.Mixfile do
         {:exlager, github: "khia/exlager"},
         {:earmark, "~> 0.1", only: :dev},
         {:ex_doc, "~> 0.8", only: :dev},
-        {:excoveralls, github: "parroty/excoveralls", tag: "v0.4.3", override: true, only: :test}
+        {:excoveralls, github: "parroty/excoveralls", tag: "v0.4.5", override: true, only: :test}
     ]
   end
 
