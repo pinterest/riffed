@@ -64,10 +64,10 @@ defmodule Riffed.Enumeration do
     quote do
       require Riffed.Enumeration
       import Riffed.Enumeration, only: [defenum: 2,
-                                      enumerize_struct: 2,
-                                      enumerize_function: 1,
-                                      enumerize_function: 2,
-                                     ]
+                                        enumerize_struct: 2,
+                                        enumerize_function: 1,
+                                        enumerize_function: 2,
+                                       ]
     end
   end
 
