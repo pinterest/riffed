@@ -78,15 +78,48 @@ defmodule Riffed.Struct do
     end
   end
 
+
+  defp build_defenum(struct_module, module_mapping, enum_name) do
+    mappings = struct_module.enum_info(enum_name)
+    |> Enum.map(fn {name, val} ->
+      downcased_name = name
+      |> Atom.to_string
+      |> String.downcase
+      |> String.to_atom
+
+      {:->, [], [[downcased_name], val]}
+    end)
+
+    fq_enum_name = case module_mapping[struct_module] do
+                     nil ->
+                       [enum_name]
+                     {:__aliases__, _, names } ->
+                       names ++ [enum_name]
+                   end
+
+    {:defenum, [],
+     [{:__aliases__, [alias: false], fq_enum_name},
+      [do: mappings]]}
+  end
+
   defmacro __using__(opts) do
     Module.register_attribute(__CALLER__.module, :callbacks, accumulate: true)
     {module_mapping, opts} = Keyword.pop(opts, :dest_modules, Keyword.new)
+
+    defenum_calls = opts
+    |> Keyword.keys
+    |> Enum.map(fn(thrift_module) ->
+      thrift_module.enum_names
+      |> Enum.map(&(build_defenum(thrift_module, module_mapping, &1)))
+    end)
+
     quote do
       use Riffed.Callbacks
       use Riffed.Enumeration
       require Riffed.Struct
       import Riffed.Struct
 
+      unquote_splicing(defenum_calls)
       @thrift_options unquote(opts)
       @dest_modules unquote(module_mapping)
       @before_compile Riffed.Struct
@@ -295,6 +328,13 @@ defmodule Riffed.Struct do
                         override_module ->
                           Module.concat([env.module, override_module])
                       end
+        struct_names = case struct_names do
+                         :auto ->
+                           thrift_module.struct_names
+                         names when is_list(names) ->
+                           names
+                       end
+
         Enum.reduce(struct_names, data,
           fn(struct_name, data) ->
             build_struct_and_conversion_function(data, env.module, dest_module, struct_name, thrift_module)

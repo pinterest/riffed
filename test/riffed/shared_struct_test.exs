@@ -1,14 +1,11 @@
 defmodule SharedStructs do
   use Riffed.Struct,
-  dest_modules: [account_types: AccountStructs],
-  shared_service_types: [:AccountList],
+  dest_modules: [account_types: AccountStructs,
+                 status_types: Status
+                ],
+  shared_service_types: :auto,
+  status_types: :auto,
   account_types: [:Account, :Preferences]
-
-  defenum Status.Status do
-    :inactive -> 1
-    :active -> 2
-    :core -> 3
-  end
 
   enumerize_struct AccountList, status: Status.Status
 end

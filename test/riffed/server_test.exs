@@ -35,12 +35,6 @@ defmodule ServerTest do
                      keepalive: true]
             }
 
-    defenum ActivityState do
-      :active -> 1
-      :inactive -> 2
-      :banned -> 3
-    end
-
     enumerize_struct User, state: ActivityState
     enumerize_function getTranslatedState(_), returns: ActivityState
     enumerize_function getState(ActivityState), returns: ActivityState

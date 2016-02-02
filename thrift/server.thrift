@@ -1,9 +1,9 @@
 include "structures.thrift"
 
 enum ActivityState {
-  ACTIVE,
-  INACTIVE,
-  BANNED;
+  ACTIVE = 1,
+  INACTIVE = 2,
+  BANNED = 3;
 }
 
 struct User {

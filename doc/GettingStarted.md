@@ -1,4 +1,4 @@
-# Getting Started
+q# Getting Started
 
 This guide will bring you step-by-step through building your first Riffed server and client. The service will allow for registering, fetching, and banning users. An example of the completed tutorial can be found in `examples/tutorial/`.
 
@@ -6,7 +6,7 @@ We'll assume you already have a Mix project to work with called `rift_tutorial`.
 
 ```elixir
 def deps do
-  [{:riffed, github: "pinterest/riffed", tag: "1.0.0", submodules: true}]
+  [{:riffed, github: "pinterest/riffed", tag: "1.5.0", submodules: true}]
 end
 ```
 
@@ -71,12 +71,6 @@ defmodule RiffedTutorial.Server do
              keepalive: true]
           }
 
-  defenum UserState do
-    :active -> 0
-    :inactive -> 1
-    :banned -> 2
-  end
-
   enumerize_struct User, state: UserState
   enumerize_function setUserState(_, UserState)
   enumerize_function getState(_), returns: UserState
@@ -92,9 +86,7 @@ Keyword | Explanation
 `:functions` | This is a keyword list that maps the thrift service method name to a method that handles it. In this case, we have yet to define the module `RiffedTutorial.Handler`, however we will shortly.
 `:server` | This tells Riffed which type of thrift server to use. For details on the different types, as well as all the additional parameters you can give here, you will need to consult the [Erlang Thrift Implementation](https://github.com/apache/thrift/tree/master/lib/erl).
 
-Next, we see a `defenum` block. Elixir does not support any form of enumeration, and so this invokes some macros built into Riffed for defining enums. Always ensure the ordering here matches with the ordering in your `.thrift` file. Well, actually the ordering is not important, but rather the values you assign are.
-
-Lastly, there are two more macros `enumerize_struct` and `enumerize_function` which you use to tell Riffed how your enum is used. Any fields, parameters, or return values must be enumerized so Riffed will know how to convert between their base values and the enumerized values.
+Next, there are two more macros `enumerize_struct` and `enumerize_function` which you use to tell Riffed how your enum is used. Any fields, parameters, or return values must be enumerized so Riffed will know how to convert between their base values and the enumerized values.
 
 ## 3. Building the Handler
 
@@ -164,10 +156,6 @@ defmodule RiffedTutorial.Client do
     framed: true
   ],
   service: :tutorial_thrift,
-  import: [:registerUser,
-           :getUser,
-           :getState,
-           :setState]
 
   enumerize_function setState(_, UserState)
   enumerize_function getState(_), returns: UserState
@@ -182,19 +170,15 @@ If you really want, you can set `auto_import_structs: false` on both the client 
 
 ```elixir
 defmodule RiffedTutorial.Models do
-  use Riffed.Struct, tutorial_types: [:User]
-
-  defenum UserState do
-    :active -> 0
-    :inactive -> 1
-    :banned -> 2
-  end
+  use Riffed.Struct, tutorial_types: :auto
 
   enumerize_struct User, state: UserState
 end
 ```
 
-If you do this, you can remove the `defenum` and `enumerize_struct` parts of the server definition as well. Be sure to leave in the `enumerize_function` calls.
+Here, the `:auto` keyword makes `Riffed` import all of the enumerations and structs defined in the `tutorial_types` module.
+
+If you do this, you can remove the `enumerize_struct` parts of the server definition as well. Be sure to leave in the `enumerize_function` calls.
 
 ## 5. Setting up the Supervision Tree
 
