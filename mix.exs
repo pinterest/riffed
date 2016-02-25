@@ -27,7 +27,7 @@ defmodule Riffed.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:thrift, :exlager]]
+    [applications: [:thrift]]
   end
 
   def compilers(:test) do
@@ -43,7 +43,6 @@ defmodule Riffed.Mixfile do
         {:thrift, github: "pinterest/elixir-thrift", tag: "1.0.0", submodules: true},
         {:meck, "~> 0.8.2", only: [:test, :dev]},
         {:mock, github: "jjh42/mock", only: [:test, :dev]},
-        {:exlager, github: "khia/exlager"},
         {:earmark, "~> 0.1", only: :dev},
         {:ex_doc, "~> 0.8", only: :dev},
         {:excoveralls, github: "parroty/excoveralls", tag: "v0.4.5", override: true, only: :test}
