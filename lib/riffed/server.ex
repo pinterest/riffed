@@ -137,7 +137,7 @@ defmodule Riffed.Server do
   defp build_error_handler(nil) do
     quote do
       def handle_error(_, :timeout) do
-        Lager.notice("Connection to client timed out.")
+        Logger.warn("Connection to client timed out.")
         {:ok, :timeout}
       end
 
@@ -146,7 +146,7 @@ defmodule Riffed.Server do
       end
 
       def handle_error(name, reason) do
-        Lager.error("Unhandled thrift error: #{name}, #{reason}")
+        Logger.error("Unhandled thrift error: #{name}, #{reason}")
         {:error, reason}
       end
     end
@@ -196,7 +196,7 @@ defmodule Riffed.Server do
 
     quote do
       unquote(struct_module)
-      require Lager
+      require Logger
 
       def start_link do
         default_opts = [service: unquote(thrift_module),
