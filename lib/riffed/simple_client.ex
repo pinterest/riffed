@@ -188,6 +188,8 @@ defmodule Riffed.SimpleClient do
       when retry_count <= unquote(num_retries) do
         response = unquote(client_module).call(client, call_name, args)
         case response do
+          {:error, :closed} ->
+            retry_delay(client, call_name, args, retry_count)
           {:error, :econnaborted} ->
             retry_delay(client, call_name, args, retry_count)
           {:error, :noconn} ->
