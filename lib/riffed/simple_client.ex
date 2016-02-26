@@ -8,7 +8,7 @@ defmodule Riffed.SimpleClient do
   Riffed's wrapper does, dutifully converting between Elixir and thrift for you.
 
       defmodule Client do
-        use Riffed.Client,
+        use Riffed.SimpleClient,
           structs: Models,
           client: [
             :thrift_reconnecting_client,
