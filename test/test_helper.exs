@@ -22,6 +22,7 @@ defmodule Utils do
   end
 
   def wait_to_die(pid) do
+    :timer.sleep(10)
     if Process.alive?(pid) do
       wait_to_die(pid)
     end
