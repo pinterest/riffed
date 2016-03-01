@@ -12,6 +12,7 @@ defmodule Riffed.SimpleClient do
           structs: Models,
           client: [
             :thrift_reconnecting_client,
+            :start_link,
             'localhost',          # Host
             2112,                 # Port
             :my_library_thrift,   # ThriftSvc
@@ -122,7 +123,7 @@ defmodule Riffed.SimpleClient do
     thrift_module = Module.get_attribute(env.module, :thrift_module)
     functions = Module.get_attribute(env.module, :functions)
 
-    [client_module | client_args] = client
+    [client_module, client_function | client_args] = client
     metadata = extract(thrift_module, functions)
     num_retries = retry_delays && tuple_size(retry_delays) || 0
 
@@ -150,7 +151,7 @@ defmodule Riffed.SimpleClient do
       def start_link do
         case Process.whereis(__MODULE__) do
           nil ->
-            ret = unquote(client_module).start_link(
+            ret = unquote(client_module).unquote(client_function)(
               unquote_splicing(client_args))
             case ret do
               {:ok, pid} ->
@@ -167,8 +168,8 @@ defmodule Riffed.SimpleClient do
         end
       end
 
-      def start_link(module, args) do
-        apply(module, :start_link, args)
+      def start_link(module, function, args) do
+        apply(module, function, args)
       end
 
       def stop do

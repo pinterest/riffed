@@ -39,6 +39,7 @@ defmodule SimpleClientTest do
       structs: SimpleClientModels,
       client: [
         :thrift_reconnecting_client,
+        :start_link,
         'localhost',          # Host
         2112,                 # Port
         :server_thrift,       # ThriftSvc
@@ -101,14 +102,16 @@ defmodule SimpleClientTest do
     {:ok, pid} = SimpleClientEchoServer.start_link
     with_mock :thrift_reconnecting_client, [
       start_link: fn(_, _, _, _, _, _) -> {:ok, pid} end] do
-      {:ok, ^pid} = Client.start_link(:thrift_reconnecting_client, [
-        'localhost',          # Host
-        2112,                 # Port
-        :server_thrift,       # ThriftSvc
-        [framed: true],       # ThriftOpts
-        100,                  # ReconnMin
-        3_000,                # ReconnMax
-      ])
+      {:ok, ^pid} = Client.start_link(
+        :thrift_reconnecting_client, :start_link, [
+          'localhost',          # Host
+          2112,                 # Port
+          :server_thrift,       # ThriftSvc
+          [framed: true],       # ThriftOpts
+          100,                  # ReconnMin
+          3_000,                # ReconnMax
+        ]
+      )
     end
     on_exit fn -> Utils.ensure_pid_stopped(pid) end
     Process.put(:simple_client_pid, pid)
