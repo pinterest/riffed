@@ -4,6 +4,7 @@ defmodule RiffedTutorial.SimpleClient do
     structs: RiffedTutorial.Models,
     client: [
       :thrift_reconnecting_client,
+      :start_link,
       'localhost',          # Host
       2112,                 # Port
       :tutorial_thrift,     # ThriftSvc

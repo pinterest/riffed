@@ -20,6 +20,7 @@ defmodule Riffed.SimpleClient do
             100,                  # ReconnMin
             3_000,                # ReconnMax
           ],
+          register: true,
           retry_delays: {100, 300, 1_000},
           service: :my_library_thrift,
           import: [
@@ -66,6 +67,7 @@ defmodule Riffed.SimpleClient do
     thrift_module = opts[:service]
     functions = opts[:import]
     auto_import_structs = Keyword.get(opts, :auto_import_structs, true)
+    register = Keyword.get(opts, :register, true)
 
     quote do
       use Riffed.Callbacks
@@ -73,6 +75,7 @@ defmodule Riffed.SimpleClient do
 
       @struct_module unquote(struct_module_name)
       @client unquote(client)
+      @register unquote(register)
       @retry_delays unquote(retry_delays)
       @thrift_module unquote(thrift_module)
       @functions unquote(functions)
@@ -155,10 +158,9 @@ defmodule Riffed.SimpleClient do
               unquote_splicing(client_args))
             case ret do
               {:ok, pid} ->
-                if Process.whereis(unquote(client_module)) == pid do
-                  Process.unregister(unquote(client_module))
+                if @register do
+                  Process.register(pid, __MODULE__)
                 end
-                Process.register(pid, __MODULE__)
                 {:ok, pid}
               other ->
                 other
