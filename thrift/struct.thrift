@@ -1,7 +1,8 @@
 enum TimePeriod {
   DAY,
   WEEK,
-  MONTH;
+  MONTH,
+  YEAR;
 }
 
 struct Inner {
