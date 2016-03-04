@@ -27,6 +27,7 @@ defmodule StructTest do
       :day -> 1
       :week -> 2
       :month -> 3
+      # year is intentionally omitted
     end
 
     enumerize_struct NeedsFixup, time: Time
@@ -120,6 +121,18 @@ defmodule StructTest do
   test "Enums in tuples are correctly converted to elixir" do
     actual = {:NeedsFixup, "Foo", 2} |> to_elixir({:struct, {:struct_types, :NeedsFixup}})
     assert Structs.Time.week == actual.time
+  end
+
+  test "Enums with values not defined in elixir get nil ordinals" do
+    actual = {:NeedsFixup, "Foo", 4} |> to_elixir({:struct, {:struct_types, :NeedsFixup}})
+    assert %Structs.Time{value: 4} == actual.time
+  end
+
+  test "nil enums can be turned into erlang" do
+    actual = Structs.NeedsFixup.new(time: Structs.Time.value(4))
+    |> to_erlang({:struct, {:struct_types, :NeedsFixup}})
+
+    assert {:NeedsFixup, _, 4} = actual
   end
 
   test "Enums in structs are properly converted into erlang" do

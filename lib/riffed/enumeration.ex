@@ -278,6 +278,10 @@ defmodule Riffed.Enumeration do
         defstruct ordinal: nil, value: nil
         unquote_splicing(fns)
 
+        def value(unknown_value) do
+          %unquote(enum_name){value: unknown_value}
+        end
+
         def ordinals do
           unquote(Keyword.keys mapping)
         end
