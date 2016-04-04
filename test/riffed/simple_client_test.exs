@@ -64,7 +64,9 @@ defmodule SimpleClientTest do
         :getUserStates,
         :getAllStates,
         :getUsers,
-        :functionWithoutNumberedArgs
+        :functionWithoutNumberedArgs,
+        :testException,
+        :testMultiException,
       ]
 
     defenum ActivityState do
@@ -140,6 +142,13 @@ defmodule SimpleClientTest do
     fn(_client, fn_name, args) ->
       SimpleClientEchoServer.set_args({fn_name, args})
       {:ok, response}
+    end
+  end
+
+  def exception_with(ex) do
+    fn(_client, fn_name, args) ->
+      SimpleClientEchoServer.set_args({fn_name, args})
+      {:exception, ex}
     end
   end
 
@@ -291,5 +300,92 @@ defmodule SimpleClientTest do
     assert response == 1234
     assert SimpleClientEchoServer.last_call == {
       :functionWithoutNumberedArgs, [user_tuple, 23]}
+  end
+
+  test_with_mock "it should return exception",
+  :thrift_reconnecting_client,
+  [call: exception_with({:Xception, 1001, "Xception"})] do
+    pid = Process.get(:simple_client_pid)
+    {:exception, ex} = Client.testException(pid, "Xception")
+    assert ex == {:Xception, 1001, "Xception"}
+    assert SimpleClientEchoServer.last_call == {
+      :testException, ["Xception"]}
+  end
+
+  test_with_mock "it should raise exception",
+  :thrift_reconnecting_client,
+  [call: exception_with({:Xception, 1001, "Xception"})] do
+    pid = Process.get(:simple_client_pid)
+    try do
+      Client.testException!(pid, "Xception")
+    catch
+      :throw, {:exception, ex = %SimpleClientModels.Xception{}} ->
+        assert ex == SimpleClientModels.Xception.new(
+          errorCode: 1001, message: "Xception")
+    end
+    assert SimpleClientEchoServer.last_call == {
+      :testException, ["Xception"]}
+  end
+
+  test_with_mock "it should return exception case 1",
+  :thrift_reconnecting_client,
+  [call: exception_with({:Xception, 1001, "Xception"})] do
+    pid = Process.get(:simple_client_pid)
+    {:exception, ex} = Client.testMultiException(pid, "Xception", "Message")
+    assert ex == {:Xception, 1001, "Xception"}
+    assert SimpleClientEchoServer.last_call == {
+      :testMultiException, ["Xception", "Message"]}
+  end
+
+
+  test_with_mock "it should return exception case 2",
+  :thrift_reconnecting_client,
+  [call: exception_with({:Xception2, 2002, {
+    :Xtruct, "Xception2", nil, nil, nil}})] do
+
+    pid = Process.get(:simple_client_pid)
+    {:exception, ex} = Client.testMultiException(pid, "Xception2", "Message")
+    assert ex == {:Xception2, 2002, {
+      :Xtruct, "Xception2", nil, nil, nil}}
+    assert SimpleClientEchoServer.last_call == {
+      :testMultiException, ["Xception2", "Message"]}
+  end
+
+  test_with_mock "it should raise exception case 1",
+  :thrift_reconnecting_client,
+  [call: exception_with({:Xception, 1001, "Xception"})] do
+    pid = Process.get(:simple_client_pid)
+    try do
+      Client.testMultiException!(pid, "Xception", "Message")
+    catch
+      :throw, {:exception, ex = %SimpleClientModels.Xception{}} ->
+        assert ex == SimpleClientModels.Xception.new(
+          errorCode: 1001, message: "Xception")
+      :throw, {:exception, ex = %SimpleClientModels.Xception2{}} ->
+        assert false
+    end
+    assert SimpleClientEchoServer.last_call == {
+      :testMultiException, ["Xception", "Message"]}
+  end
+
+  test_with_mock "it should raise exception case 2",
+  :thrift_reconnecting_client,
+  [call: exception_with({:Xception2, 2002, {
+    :Xtruct, "Xception2", nil, nil, nil}})] do
+
+    pid = Process.get(:simple_client_pid)
+    try do
+      Client.testMultiException!(pid, "Xception2", "Message")
+    catch
+      :throw, {:exception, ex = %SimpleClientModels.Xception{}} ->
+        assert false
+      :throw, {:exception, ex = %SimpleClientModels.Xception2{}} ->
+        assert ex == SimpleClientModels.Xception2.new(
+          errorCode: 2002, struct_thing: SimpleClientModels.Xtruct.new(
+            string_thing: "Xception2", byte_thing: nil,
+            i32_thing: nil, i64_thing: nil))
+    end
+    assert SimpleClientEchoServer.last_call == {
+      :testMultiException, ["Xception2", "Message"]}
   end
 end

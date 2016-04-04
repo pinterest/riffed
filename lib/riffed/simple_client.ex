@@ -90,6 +90,7 @@ defmodule Riffed.SimpleClient do
     reply_meta = function_meta[:reply] |> Riffed.Struct.to_riffed_type_spec
     reply_meta = Riffed.Enumeration.get_overridden_type(
       func, :return_type, overrides, reply_meta)
+    ex_meta = function_meta[:exceptions] |> Riffed.Struct.to_riffed_type_spec
 
     arg_list = build_arg_list(length(param_meta))
     {:{}, _, list_args} = build_handler_tuple_args(param_meta)
@@ -108,6 +109,24 @@ defmodule Riffed.SimpleClient do
             {:ok, unquote(struct_module).to_elixir(reply, unquote(reply_meta))}
           other ->
             other
+        end
+      end
+
+      def unquote(:"#{func}!")(unquote_splicing(arg_list)) do
+        unquote(:"#{func}!")(__MODULE__, unquote_splicing(arg_list))
+      end
+
+      def unquote(:"#{func}!")(client, unquote_splicing(arg_list)) do
+        unquote_splicing(casts)
+        result = call_thrift(client, unquote(func), unquote(list_args), 0)
+        case result do
+          {:ok, reply} ->
+            unquote(struct_module).to_elixir(reply, unquote(reply_meta))
+          {:error, err} ->
+            throw({:error, err})
+          {:exception, ex} ->
+            ex = unquote(struct_module).to_elixir(ex, unquote(ex_meta))
+            throw({:exception, ex})
         end
       end
     end

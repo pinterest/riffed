@@ -247,6 +247,15 @@ defmodule Riffed.Struct do
         unquote_splicing(enum_conversions)
         unquote(module_name).new(unquote(keyword_args)) |> after_to_elixir
       end
+
+      def to_elixir(tuple, []), do: tuple
+      def to_elixir(tuple, [{_idx, {:struct, {mod, name}}} | tail]) do
+        if elem(tuple, 0) == name do
+          to_elixir(tuple, {:struct, {mod, name}})
+        else
+          to_elixir(tuple, tail)
+        end
+      end
     end
   end
 
