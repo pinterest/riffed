@@ -12,29 +12,7 @@ defmodule ClientTest do
                           recv_timeout: 3000,
                           keepalive: true]
                  ],
-    service: :server_thrift,
-    import: [:config,
-             :setUserState,
-             :dictFun,
-             :dictUserFun,
-             :setUserFun,
-             :getState,
-             :getTranslatedState,
-             :getLoudUser,
-             :setLoudUser,
-             :echoState,
-             :echoActivityStateList,
-             :getUserStates,
-             :getAllStates,
-             :getUsers,
-             :functionWithoutNumberedArgs
-            ]
-
-    defenum ActivityState do
-      :active -> 1
-      :inactive -> 2
-      :banned -> 3
-    end
+    service: :server_thrift
 
     enumerize_function getState(ActivityState), returns: ActivityState
     enumerize_function setUserState(_, ActivityState)

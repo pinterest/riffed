@@ -2,41 +2,17 @@ defmodule StructTest do
   use ExUnit.Case
 
   defmodule Structs do
-    use Riffed.Struct, struct_types: [
-            :Inner,
-            :Nested,
-            :NeedsFixup,
-            :ListContainer,
-            :SetContainer,
-            :StringToEnumContainer,
-            :IntToEnumContainer,
-            :EnumToStringContainer,
-            :DeeplyNestedContainer,
-            :ListWithMap,
-            :DefaultInt,
-            :DefaultString,
-            :DefaultSecondField,
-            :DefaultListInts,
-            :DefaultListStrings,
-            :DefaultSetStrings,
-            :DefaultMap,
-            :DefaultDeepContainer
-        ]
+    use Riffed.Struct,
+    struct_types: :auto
 
-    defenum Time do
-      :day -> 1
-      :week -> 2
-      :month -> 3
-    end
-
-    enumerize_struct NeedsFixup, time: Time
-    enumerize_struct ListContainer, timeList: {:list, Time}
-    enumerize_struct SetContainer, timeSet: {:set, Time}
-    enumerize_struct StringToEnumContainer, nameToTimePeriod: {:map, {:string, Time}}
-    enumerize_struct IntToEnumContainer, intToTimePeriod: {:map, {:i32, Time}}
-    enumerize_struct EnumToStringContainer, timePeriodToName: {:map, {Time, :string}}
-    enumerize_struct DeeplyNestedContainer, deeplyNested: {:list, {:list, {:list, Time}}}
-    enumerize_struct ListWithMap, bonanza: {:list, {:list, {:map, {Time, :string}}}}
+    enumerize_struct NeedsFixup, time: TimePeriod
+    enumerize_struct ListContainer, timeList: {:list, TimePeriod}
+    enumerize_struct SetContainer, timeSet: {:set, TimePeriod}
+    enumerize_struct StringToEnumContainer, nameToTimePeriod: {:map, {:string, TimePeriod}}
+    enumerize_struct IntToEnumContainer, intToTimePeriod: {:map, {:i32, TimePeriod}}
+    enumerize_struct EnumToStringContainer, timePeriodToName: {:map, {TimePeriod, :string}}
+    enumerize_struct DeeplyNestedContainer, deeplyNested: {:list, {:list, {:list, TimePeriod}}}
+    enumerize_struct ListWithMap, bonanza: {:list, {:list, {:map, {TimePeriod, :string}}}}
   end
 
   def to_erlang(what) do
@@ -113,30 +89,42 @@ defmodule StructTest do
   end
 
   test "A bare enum can be converted into erlang" do
-    erlang_time = Structs.Time.week |> to_erlang(nil)
-    assert Structs.Time.week.value == erlang_time
+    erlang_time = Structs.TimePeriod.week |> to_erlang(nil)
+    assert Structs.TimePeriod.week.value == erlang_time
   end
 
   test "Enums in tuples are correctly converted to elixir" do
     actual = {:NeedsFixup, "Foo", 2} |> to_elixir({:struct, {:struct_types, :NeedsFixup}})
-    assert Structs.Time.week == actual.time
+    assert Structs.TimePeriod.week == actual.time
+  end
+
+  test "Enums with values not defined in elixir get nil ordinals" do
+    actual = {:NeedsFixup, "Foo", 4} |> to_elixir({:struct, {:struct_types, :NeedsFixup}})
+    assert %Structs.TimePeriod{value: 4} == actual.time
+  end
+
+  test "nil enums can be turned into erlang" do
+    actual = Structs.NeedsFixup.new(time: Structs.TimePeriod.value(4))
+    |> to_erlang({:struct, {:struct_types, :NeedsFixup}})
+
+    assert {:NeedsFixup, _, 4} = actual
   end
 
   test "Enums in structs are properly converted into erlang" do
     {:NeedsFixup, "My Name", thrift_value} = Structs.NeedsFixup.new(
       name: "My Name",
-      time: Structs.Time.week) |> to_erlang({:struct, {:struct_types, :NeedsFixup}})
-    assert Structs.Time.week.value == thrift_value
+      time: Structs.TimePeriod.week) |> to_erlang({:struct, {:struct_types, :NeedsFixup}})
+    assert Structs.TimePeriod.week.value == thrift_value
   end
 
   test "Enums in a list in a tuple are converted into elixir" do
     container = {:ListContainer, [2, 1, 3]}
     elixir_container = container |> to_elixir({:struct, {:struct_types, :ListContainer}})
-    assert [Structs.Time.week, Structs.Time.day, Structs.Time.month] == elixir_container.timeList
+    assert [Structs.TimePeriod.week, Structs.TimePeriod.day, Structs.TimePeriod.month] == elixir_container.timeList
   end
 
   test "Enums in a list in a struct can be converted to erlang" do
-    container = Structs.ListContainer.new(timeList: [Structs.Time.week, Structs.Time.day])
+    container = Structs.ListContainer.new(timeList: [Structs.TimePeriod.week, Structs.TimePeriod.day])
     erlang_tuple = container |> to_erlang({:struct, {:struct_types, :Containers}})
     assert {:ListContainer, [2, 1]} == erlang_tuple
   end
@@ -145,11 +133,11 @@ defmodule StructTest do
     container = {:SetContainer, :sets.from_list([1, 2])}
     elixir_struct = container |> to_elixir({:struct, {:struct_types, :SetContainer}})
 
-    assert Enum.into([Structs.Time.day, Structs.Time.week], HashSet.new) == elixir_struct.timeSet
+    assert Enum.into([Structs.TimePeriod.day, Structs.TimePeriod.week], HashSet.new) == elixir_struct.timeSet
   end
 
   test "Enums in sets in a struct can be converted to erlang" do
-    elixir = Structs.SetContainer.new(timeSet: Enum.into([Structs.Time.day], HashSet.new))
+    elixir = Structs.SetContainer.new(timeSet: Enum.into([Structs.TimePeriod.day], HashSet.new))
     erlang_tuple = to_erlang(elixir, {:struct, {:struct_types, :SetContainer}})
 
     assert {:SetContainer, :sets.from_list([1])} == erlang_tuple
@@ -159,11 +147,11 @@ defmodule StructTest do
     erlang_tuple = {:StringToEnumContainer, :dict.from_list([{"foo", 2}])}
     elixir_struct = erlang_tuple |> to_elixir({:struct, {:struct_types, :StringToEnumContainer}})
 
-    assert Enum.into([{"foo", Structs.Time.week}], HashDict.new) == elixir_struct.nameToTimePeriod
+    assert Enum.into([{"foo", Structs.TimePeriod.week}], HashDict.new) == elixir_struct.nameToTimePeriod
   end
 
   test "Enums in maps in a struct can be converted into erlang" do
-    elixir_struct = Structs.StringToEnumContainer.new(nameToTimePeriod: Enum.into([{"foo", Structs.Time.day}], HashDict.new))
+    elixir_struct = Structs.StringToEnumContainer.new(nameToTimePeriod: Enum.into([{"foo", Structs.TimePeriod.day}], HashDict.new))
     erlang_tuple = to_erlang(elixir_struct, {:struct, {:struct_types, :StringToEnumContainer}})
 
     assert {:StringToEnumContainer, :dict.from_list([{"foo", 1}])} == erlang_tuple
@@ -173,12 +161,12 @@ defmodule StructTest do
     erlang_tuple = {:IntToEnumContainer, :dict.from_list([{1, 2}])}
     elixir_struct = erlang_tuple |> to_elixir({:struct, {:struct_types, :IntToEnumContainer}})
 
-    assert Enum.into([{1, Structs.Time.week}], HashDict.new) == elixir_struct.intToTimePeriod
+    assert Enum.into([{1, Structs.TimePeriod.week}], HashDict.new) == elixir_struct.intToTimePeriod
   end
 
   test "enums can be converted from elixir when both the keys and values are ints" do
     elixir_struct = Structs.IntToEnumContainer.new(
-      intToTimePeriod: Enum.into([{1, Structs.Time.week}], HashDict.new))
+      intToTimePeriod: Enum.into([{1, Structs.TimePeriod.week}], HashDict.new))
 
 
     erlang_tuple = elixir_struct |> to_erlang({:struct, {:struct_types, :IntToEnumContainer}})
@@ -190,12 +178,12 @@ defmodule StructTest do
     erlang_tuple = {:EnumToStringContainer, :dict.from_list([{2, "week"}])}
 
     elixir_struct = to_elixir(erlang_tuple, {:struct, {:struct_types, :EnumToStringContainer}})
-    assert Enum.into([{Structs.Time.week, "week"}], HashDict.new) == elixir_struct.timePeriodToName
+    assert Enum.into([{Structs.TimePeriod.week, "week"}], HashDict.new) == elixir_struct.timePeriodToName
   end
 
   test "enums as keys can be converted into erlang" do
     elixir_struct = Structs.EnumToStringContainer.new(
-      timePeriodToName: Enum.into([{Structs.Time.day, "day"}], HashDict.new))
+      timePeriodToName: Enum.into([{Structs.TimePeriod.day, "day"}], HashDict.new))
 
     erlang_tuple = to_erlang(elixir_struct, nil)
     assert {:EnumToStringContainer, :dict.from_list([{1, "day"}])} == erlang_tuple
@@ -205,26 +193,26 @@ defmodule StructTest do
     erlang_tuple = {:DeeplyNestedContainer, [[[1]]]}
     elixir_struct = to_elixir(erlang_tuple, {:struct, {:struct_types, :DeeplyNestedContainer}})
 
-    assert elixir_struct.deeplyNested == [[[Structs.Time.day]]]
+    assert elixir_struct.deeplyNested == [[[Structs.TimePeriod.day]]]
   end
 
   test "deeply nested enums in lists in elixir can be converted to erlang" do
-    elixir_struct = Structs.DeeplyNestedContainer.new(deeplyNested: [[[Structs.Time.week]]])
+    elixir_struct = Structs.DeeplyNestedContainer.new(deeplyNested: [[[Structs.TimePeriod.week]]])
     erlang_tuple = to_erlang(elixir_struct, nil)
 
     assert {:DeeplyNestedContainer, [[[2]]]} == erlang_tuple
   end
 
   test "Time.ordinals returns an ordered list of ordinals from the Time defenum" do
-    assert Structs.Time.ordinals == [:day, :week, :month]
+    assert Structs.TimePeriod.ordinals == [:day, :week, :month]
   end
 
   test "Time.values returns an ordered list of values in the Time defenum" do
-    assert Structs.Time.values == [1, 2, 3]
+    assert Structs.TimePeriod.values == [1, 2, 3]
   end
 
   test "Time.mappings returns a keyword list of ordinals and values in the Time defenum" do
-    assert Structs.Time.mappings == [day: 1, week: 2, month: 3]
+    assert Structs.TimePeriod.mappings == [day: 1, week: 2, month: 3]
   end
 
   test "a really crazy nested erlang structure can be converted to elixir" do
@@ -233,11 +221,11 @@ defmodule StructTest do
     elixir_struct = to_elixir(erlang_tuple, {:struct, {:struct_types, :ListWithMap}})
 
     [[map]] = elixir_struct.bonanza
-    assert Enum.into([{Structs.Time.week, "week"}], HashDict.new) == map
+    assert Enum.into([{Structs.TimePeriod.week, "week"}], HashDict.new) == map
   end
 
   test "a really crazy elixir structure can be turned into erlang" do
-    dict = Enum.into([{Structs.Time.month, "month"}], HashDict.new)
+    dict = Enum.into([{Structs.TimePeriod.month, "month"}], HashDict.new)
     elixir_struct = Structs.ListWithMap.new(bonanza: [[dict]])
 
     erlang_tuple = to_erlang(elixir_struct, nil)

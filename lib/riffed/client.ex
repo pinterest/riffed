@@ -98,8 +98,12 @@ defmodule Riffed.Client do
     opts = Module.get_attribute(env.module, :client_opts)
     struct_module = Module.get_attribute(env.module, :struct_module)
     thrift_client_module = Module.get_attribute(env.module, :thrift_module)
-    functions = Module.get_attribute(env.module, :functions)
-
+    functions = case Module.get_attribute(env.module, :functions) do
+                  nil ->
+                    thrift_client_module.function_names
+                  functions when is_list(functions) ->
+                    functions
+                end
 
     thrift_metadata = extract(thrift_client_module, functions)
     num_retries = opts[:retries] || 0

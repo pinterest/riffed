@@ -7,11 +7,7 @@ defmodule RiffedTutorial.Client do
     port: 2112,
     retries: 3,
     framed: true],
-  service: :tutorial_thrift,
-  import: [:registerUser,
-           :getUser,
-           :getState,
-           :setState]
+  service: :tutorial_thrift
 
   enumerize_function setState(_, UserState)
   enumerize_function getState(_), returns: UserState

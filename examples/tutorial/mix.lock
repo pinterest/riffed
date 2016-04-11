@@ -1,1 +1,4 @@
-%{}
+%{"exlager": {:git, "https://github.com/khia/exlager.git", "abb13435a540731b8b9c5f649f4d94f11a27c1f7", []},
+  "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "212299233c7e7eb63a97be2777e1c05ebaa58dbe", [tag: "0.1.8"]},
+  "lager": {:git, "https://github.com/basho/lager.git", "b2cb2735713e3021e0761623ff595d53a545438e", []},
+  "thrift": {:git, "https://github.com/pinterest/elixir-thrift.git", "9c3871cc9568eaf23c701ae11dece7bb5790b8ab", [tag: "1.0.0", submodules: true]}}
