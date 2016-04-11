@@ -100,11 +100,11 @@ defmodule StructTest do
 
   test "Enums with values not defined in elixir get nil ordinals" do
     actual = {:NeedsFixup, "Foo", 4} |> to_elixir({:struct, {:struct_types, :NeedsFixup}})
-    assert %Structs.Time{value: 4} == actual.time
+    assert %Structs.TimePeriod{value: 4} == actual.time
   end
 
   test "nil enums can be turned into erlang" do
-    actual = Structs.NeedsFixup.new(time: Structs.Time.value(4))
+    actual = Structs.NeedsFixup.new(time: Structs.TimePeriod.value(4))
     |> to_erlang({:struct, {:struct_types, :NeedsFixup}})
 
     assert {:NeedsFixup, _, 4} = actual
