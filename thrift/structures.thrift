@@ -16,3 +16,8 @@ struct MapResponse {
 struct ListResponse {
   1: i64 listId;
 }
+
+exception ServerException {
+  1: string message,
+  2: i32 code
+}

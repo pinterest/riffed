@@ -110,25 +110,57 @@ defmodule Riffed.Server do
                 [delegate_info[:module]]}, delegate_info[:name]]}, [], arg_list}
   end
 
+  defp wrap_with_exception_handlers([], _struct_module, handler_call) do
+    handler_call
+  end
+
+  defp wrap_with_exception_handlers(exceptions, struct_module, handler_call) do
+    elixir_exceptions = exceptions
+    |> Enum.map(fn({_seq,{:struct, {_thrift_module, ex_name}}}) ->
+      Module.concat(struct_module, ex_name)
+    end)
+
+    quote do
+      try do
+        unquote(handler_call)
+      rescue e in unquote(elixir_exceptions) -> e
+        erl_exc = unquote(struct_module).to_erlang(e, nil)
+        {:exception, erl_exc}
+      end
+    end
+  end
+
   defp build_handler(meta=%Meta{}, struct_module, thrift_fn_name, delegate_fn, fn_overrides) do
 
     function_meta = Meta.metadata_for_function(meta, thrift_fn_name)
     params_meta = function_meta[:params]
     reply_meta = function_meta[:reply] |> Riffed.Struct.to_riffed_type_spec
+    exception_meta = function_meta[:exceptions]
     tuple_args = build_handler_tuple_args(params_meta)
     delegate_call = build_delegate_call(delegate_fn)
     casts = build_casts(thrift_fn_name, struct_module, params_meta, fn_overrides, :to_elixir)
     overridden_type = Riffed.Enumeration.get_overridden_type(thrift_fn_name, :return_type, fn_overrides, reply_meta)
 
+    exception_handling = wrap_with_exception_handlers(
+      exception_meta,
+      struct_module,
+      quote do
+        unquote(delegate_call)
+        |> unquote(struct_module).to_erlang(unquote(overridden_type))
+      end)
+
     quote do
       def handle_function(unquote(thrift_fn_name), unquote(tuple_args)) do
         unquote_splicing(casts)
-        rsp = unquote(delegate_call)
-        |> unquote(struct_module).to_erlang(unquote(overridden_type))
+        rsp = unquote(exception_handling)
 
         case rsp do
-          :ok -> :ok
-          _ -> {:reply, rsp}
+          :ok ->
+            :ok
+          exc = {:exception, ex} ->
+            exc
+          _ ->
+            {:reply, rsp}
         end
       end
     end
