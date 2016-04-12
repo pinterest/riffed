@@ -162,8 +162,10 @@ defmodule Riffed.Client do
         GenServer.start_link(__MODULE__, thrift_client, name: __MODULE__)
       end
 
-      def start_link(host, port) do
-        GenServer.start_link(__MODULE__, {host, port})
+      def start_link(host, port), do: start_link(host, port, [])
+
+      def start_link(host, port, gen_server_opts) do
+        GenServer.start_link(__MODULE__, {host, port}, gen_server_opts)
       end
 
       def handle_call({:disconnect, _args}, _parent, client=%Client{client: thrift_client}) do

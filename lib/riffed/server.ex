@@ -195,11 +195,13 @@ defmodule Riffed.Server do
       unquote(struct_module)
       require Lager
 
-      def start_link do
+      def start_link(cmd_opts \\ []) do
         default_opts = [service: unquote(thrift_module),
                         handler: unquote(env.module),
                         name: unquote(env.module)]
-        opts = Keyword.merge(unquote(server_opts), default_opts)
+        opts = unquote(server_opts)
+               |> Keyword.merge(default_opts)
+               |> Keyword.merge(cmd_opts)
         {:ok, server_pid} = unquote(server).start(opts)
         unquote(after_start).(server_pid, unquote(server_opts))
         {:ok, server_pid}
