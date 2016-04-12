@@ -69,7 +69,7 @@ defmodule Riffed.Struct do
 
   defmodule StructData do
     @moduledoc false
-    defstruct struct_modules: [], tuple_converters: [], struct_converters: []
+    defstruct struct_modules: [], tuple_converters: [], struct_converters: [], exception_modules: []
 
     def append(data=%StructData{}, struct_module, tuple_stanza, struct_function) do
       %StructData{struct_modules: [struct_module | data.struct_modules],
@@ -172,11 +172,44 @@ defmodule Riffed.Struct do
         defstruct unquote(struct_args)
 
         def new(opts \\ unquote(struct_args)) do
-          Enum.reduce(opts, %unquote(fq_module_name){}, fn({k, v}, s) -> Map.put(s, k, v) end)
+          opts
+          |> Enum.reduce(%unquote(fq_module_name){}, fn({k, v}, s) -> Map.put(s, k, v) end)
         end
       end
     end
-    StructData.append(struct_data, struct_module, tuple_to_elixir, struct_to_erlang)
+
+    struct_data
+    |> StructData.append(struct_module, tuple_to_elixir, struct_to_erlang)
+  end
+
+  def build_exception_and_conversion_function(struct_data=%StructData{}, root_module, container_module, exception_module_name, thrift_module) do
+
+    {:struct, meta} = :erlang.apply(thrift_module, :struct_info_ext, [exception_module_name])
+    exception_args = build_struct_args(meta)
+    fq_module_name = Module.concat([container_module, exception_module_name])
+    record_name = downcase_first(exception_module_name)
+    record_file = "src/#{thrift_module}.hrl"
+    tuple_to_elixir = build_tuple_to_elixir(thrift_module, root_module, fq_module_name, meta, exception_module_name)
+    struct_to_erlang = build_struct_to_erlang(root_module, fq_module_name, meta, exception_module_name, record_name)
+
+    exception_module = quote do
+      defmodule unquote(fq_module_name) do
+        require Record
+
+        Record.defrecord(unquote(record_name),
+                         Record.extract(unquote(exception_module_name), from: unquote(record_file)))
+
+        defexception unquote(exception_args)
+
+        def new(opts \\ unquote(exception_args)) do
+          opts
+          |> Enum.reduce(%unquote(fq_module_name){}, fn({k, v}, s) -> Map.put(s, k, v) end)
+        end
+      end
+    end
+
+    struct_data
+    |> StructData.append(exception_module, tuple_to_elixir, struct_to_erlang)
   end
 
   @doc false
@@ -279,6 +312,14 @@ defmodule Riffed.Struct do
     end
   end
 
+  def partition_structs_and_exceptions(thrift_module, module_names) do
+    struct_names = :erlang.apply(thrift_module, :struct_names, [])
+    |> Enum.into(MapSet.new)
+
+    module_names
+    |> Enum.partition(&MapSet.member?(struct_names, &1))
+  end
+
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :thrift_options)
     build_cast_to_erlang = Module.get_attribute(env.module, :build_cast_to_erlang)
@@ -288,6 +329,8 @@ defmodule Riffed.Struct do
     |> Enum.reduce(
       %StructData{},
       fn({thrift_module, struct_names}, data) ->
+        {structs, exceptions} = partition_structs_and_exceptions(thrift_module,
+                                                                 struct_names)
         curr_module = env.module
         dest_module = case Keyword.get(module_mapping, thrift_module, env.module) do
                         ^curr_module ->
@@ -295,10 +338,14 @@ defmodule Riffed.Struct do
                         override_module ->
                           Module.concat([env.module, override_module])
                       end
-        Enum.reduce(struct_names, data,
+        data = structs
+        |> Enum.reduce(data,
           fn(struct_name, data) ->
             build_struct_and_conversion_function(data, env.module, dest_module, struct_name, thrift_module)
           end)
+        exceptions
+        |> Enum.reduce(data, &(build_exception_and_conversion_function(&2, env.module, dest_module, &1, thrift_module)))
+
       end)
 
     callbacks = Riffed.Callbacks.build(env.module)

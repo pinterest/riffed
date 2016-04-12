@@ -79,5 +79,10 @@ struct DefaultDeepContainer {
   1: list<list<map<i32, string>>> values = [[{1: "a"}, {2: "b"}]];
 }
 
+exception StructException {
+  1: string message,
+  2: i32 code;
+}
+
 service Struct {
 }

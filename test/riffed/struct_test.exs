@@ -3,25 +3,26 @@ defmodule StructTest do
 
   defmodule Structs do
     use Riffed.Struct, struct_types: [
-            :Inner,
-            :Nested,
-            :NeedsFixup,
-            :ListContainer,
-            :SetContainer,
-            :StringToEnumContainer,
-            :IntToEnumContainer,
-            :EnumToStringContainer,
-            :DeeplyNestedContainer,
-            :ListWithMap,
-            :DefaultInt,
-            :DefaultString,
-            :DefaultSecondField,
-            :DefaultListInts,
-            :DefaultListStrings,
-            :DefaultSetStrings,
-            :DefaultMap,
-            :DefaultDeepContainer
-        ]
+      :Inner,
+      :Nested,
+      :NeedsFixup,
+      :ListContainer,
+      :SetContainer,
+      :StringToEnumContainer,
+      :IntToEnumContainer,
+      :EnumToStringContainer,
+      :DeeplyNestedContainer,
+      :ListWithMap,
+      :DefaultInt,
+      :DefaultString,
+      :DefaultSecondField,
+      :DefaultListInts,
+      :DefaultListStrings,
+      :DefaultSetStrings,
+      :DefaultMap,
+      :DefaultDeepContainer,
+      :StructException,
+    ]
 
     defenum Time do
       :day -> 1
@@ -302,4 +303,17 @@ defmodule StructTest do
     assert struct.values == [[%{1 => "a"}, %{2 => "b"}]]
   end
 
+  test "exceptions are converted to erlang properly" do
+    exception = Structs.StructException.new(message: "Oops, something went wrong", code: 42)
+    assert {:StructException, "Oops, something went wrong", 42} == to_erlang(exception)
+  end
+
+  test "exceptions are converted to elixir correctly" do
+    erlang_tuple = {:StructException, "Hey", 45}
+
+    expected = erlang_tuple
+    |> to_elixir({:struct, {:struct_types, :StructException}})
+
+    assert expected == Structs.StructException.new(message: "Hey", code: 45)
+  end
 end
