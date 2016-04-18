@@ -158,7 +158,7 @@ defmodule RegisterClient do
   structs: Models,
   client_opts: [host: "localhost", port: 1234, framed: true],
   service: :pinterest_thrift,
-  import [:register,
+  import: [:register,
          :isRegistered,
          :getState]
 
