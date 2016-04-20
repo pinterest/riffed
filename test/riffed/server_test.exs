@@ -23,7 +23,8 @@ defmodule ServerTest do
                 getMapResponse: &ServerTest.FakeHandler.get_map_response/0,
                 getListResponse: &ServerTest.FakeHandler.get_list_response/0,
                 getSetResponse: &ServerTest.FakeHandler.get_set_response/0,
-                getUserBoardResponse: &ServerTest.FakeHandler.get_user_board_response/0
+                getUserBoardResponse: &ServerTest.FakeHandler.get_user_board_response/0,
+                callAndBlowUp: &ServerTest.FakeHandler.call_and_blow_up/2,
                ],
 
     server: {:thrift_socket_server,
@@ -260,6 +261,19 @@ defmodule ServerTest do
                                                        title: "Sweet stuff",
                                                        pinIds: [6, 9, 32]))
     end
+
+    def call_and_blow_up(message, "usage") do
+      raise Data.UsageException.new(message: message, code: 291)
+    end
+
+    def call_and_blow_up(_, "unhandled") do
+      raise "oh noes!"
+    end
+
+    def call_and_blow_up(message, _) do
+      raise Data.ServerException.new(message: message, code: 392)
+    end
+
   end
 
   setup do
@@ -464,4 +478,18 @@ defmodule ServerTest do
     Server.handle_function(:getUserBoardResponse, {})
   end
 
+  test "It should properly encode and handle exceptions thrown by their handlers" do
+    {:exception, e} = Server.handle_function(:callAndBlowUp, {"hey there", "server"})
+    assert {:ServerException, "hey there", 392} == e
+
+    {:exception, e2} = Server.handle_function(:callAndBlowUp, {"usage!", "usage"})
+    assert {:UsageException, "usage!", 291} == e2
+  end
+
+  test "It should not handle exceptions not defined in thrift" do
+    assert_raise RuntimeError, fn ->
+      Server.handle_function(:callAndBlowUp, {nil, "unhandled"})
+    end
+
+  end
 end

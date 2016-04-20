@@ -27,7 +27,8 @@ defmodule ClientTest do
              :getUserStates,
              :getAllStates,
              :getUsers,
-             :functionWithoutNumberedArgs
+             :functionWithoutNumberedArgs,
+             :callAndBlowUp
             ]
 
     defenum ActivityState do
@@ -89,6 +90,13 @@ defmodule ClientTest do
     fn(client, fn_name, args) ->
       EchoServer.set_args({fn_name, args})
       {client, {:ok, response}}
+    end
+  end
+
+  def error_with(error) do
+    fn(client, fn_name, args)  ->
+      EchoServer.set_args({fn_name, args})
+      {client, {:exception, error}}
     end
   end
 
@@ -216,4 +224,12 @@ defmodule ClientTest do
     assert response == 1234
     assert {:functionWithoutNumberedArgs, [user_tuple, 23]}  == last_call
   end
+
+  test_with_mock "it should throw exceptions from the thrift server", :thrift_client, [call: error_with({:ServerException, "Server died", 500})] do
+
+    assert_raise Models.ServerException, fn ->
+      Client.callAndBlowUp("foo", "bar")
+    end
+  end
+
 end
