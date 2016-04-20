@@ -216,4 +216,127 @@ defmodule ClientTest do
     assert response == 1234
     assert {:functionWithoutNumberedArgs, [user_tuple, 23]}  == last_call
   end
+
+
+end
+
+
+defmodule ClientEdgeCaseTests do
+  use ExUnit.Case
+  import Mock
+
+  defmodule Server do
+    use Riffed.Server,
+    structs: EdgeCaseServerModels,
+    service: :server_thrift,
+    functions: [config: &ClientEdgeCaseTests.Server.Handler.config/2],
+    server: {:thrift_socket_server,
+             port: 2113,
+             framed: true,
+             max: 10_000,
+             socket_opts: [recv_timeout: 3000,
+                           keepalive: true]
+            }
+
+    defmodule Handler do
+      def config(req, _) do
+        EdgeCaseServerModels.ConfigResponse.new(
+          template: req.template,
+          requestCount: req.requestCount,
+          per: 1)
+      end
+    end
+  end
+
+  defmodule Client do
+    use Riffed.Client, structs: EdgeCaseClientModels,
+    client_opts: [host: "localhost",
+                  port: 2113,
+                  framed: true,
+                  retries: 1
+                 ],
+    service: :server_thrift,
+    import: [:config]
+  end
+
+  setup do
+    {:ok, server} = Server.start_link
+    {:ok, client} = Client.start_link("localhost", 2113)
+    Process.register(client, :client)
+
+    on_exit fn ->
+      Utils.ensure_pid_stopped(server)
+      Utils.ensure_pid_stopped(client)
+
+      :ok
+    end
+
+    :ok
+  end
+
+  defp call_on_client_socket(socket_fn) do
+    fn(socket, len, state) ->
+      {:ok, {ip, local_port}} = socket
+      |> :inet.sockname
+
+      # blow up only on the client. The server's local port is 2113
+      if local_port != 2113 do
+        socket_fn.(socket)
+      else
+        :meck.passthrough([socket, len, state])
+      end
+    end
+  end
+
+  defp new_config_request do
+    alias EdgeCaseClientModels.ConfigRequest
+    alias EdgeCaseClientModels.User
+
+    request = ConfigRequest.new(template: "/foo/bar",
+                                requestCount: 32,
+                                user: User.new(firstName: "Stinky",
+                                               lastName: "Stinkman"))
+  end
+
+  defp find_client_pid do
+    client_pid = :client
+    |> Process.whereis
+  end
+
+  test "it should work" do
+    request = new_config_request
+    response = Client.config(find_client_pid, request, 12345)
+
+    assert response.per == 1
+    assert response.requestCount == request.requestCount
+    assert response.template == request.template
+  end
+
+  test_with_mock "it should handle the case when the thrift client receives an error",
+  :gen_tcp, [unstick: true, passthrough: true],
+  [recv: call_on_client_socket(fn(_) -> {:error, :badf} end)] do
+
+    client_pid = find_client_pid
+
+    Process.unlink(client_pid)
+    request = new_config_request
+
+    assert {:badf, _} = catch_exit(Client.config(client_pid, request, 12345))
+
+    refute Process.alive?(client_pid)
+  end
+
+  test_with_mock "it should cleanly handle a client exit", :thrift_client,
+  [validate: false],
+  [call: fn(_client, _fn_name, _args) -> :meck.exception(:error, :oh_noes) end]do
+
+    client_pid = find_client_pid
+
+    Process.unlink(client_pid)
+    request = new_config_request
+
+    assert catch_exit(Client.config(client_pid, request, 12345))
+    refute Process.alive?(client_pid)
+  end
+
 end
