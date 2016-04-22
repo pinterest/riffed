@@ -221,6 +221,11 @@ defmodule Riffed.Client do
         new_client = %Client{client | client: thrift_client}
         case response do
           {:error, :closed} ->
+            # close before we reconnect, otherwise we'll leak the socket's port.
+            # it seems like the client should do this since it's handling the error
+            # and is telling us that it's 'closed'. We've found out that we get many
+            # sockets in ebadf state.
+            :thrift_client.close(thrift_client)
             new_client = Client.reconnect(client)
             call_thrift(new_client, call_name, args, retry_count + 1)
 
