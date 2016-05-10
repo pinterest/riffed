@@ -9,8 +9,8 @@
   "idna": {:hex, :idna, "1.0.3"},
   "jsx": {:hex, :jsx, "2.6.2"},
   "lager": {:git, "https://github.com/basho/lager.git", "310ed140ab86b95dd9f1f1ed3bf2ca93f841349d", []},
-  "meck": {:hex, :meck, "0.8.3"},
+  "meck": {:hex, :meck, "0.8.4"},
   "mimerl": {:hex, :mimerl, "1.0.2"},
-  "mock": {:git, "https://github.com/jjh42/mock.git", "c2b7dc75bc219124f8b458b62cf9a65616907e04", []},
+  "mock": {:hex, :mock, "0.1.3"},
   "ssl_verify_hostname": {:hex, :ssl_verify_hostname, "1.0.5"},
   "thrift": {:git, "https://github.com/pinterest/elixir-thrift.git", "9c3871cc9568eaf23c701ae11dece7bb5790b8ab", [tag: "1.0.0", submodules: true]}}
