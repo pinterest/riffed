@@ -139,16 +139,29 @@ defmodule Riffed.Callbacks do
       def to_erlang(elixir_dict=%HashDict{}, {:map, {key_type, val_type}}) do
         elixir_dict
         |> Enum.map(
-            fn({k, v}) ->
-              {to_erlang(k, key_type),
-               to_erlang(v, val_type)}
-            end)
+          fn {k, v} ->
+            {to_erlang(k, key_type), to_erlang(v, val_type)}
+          end)
+        |> :dict.from_list
+      end
+
+      def to_erlang(elixir_map=%{}, {:map, {key_type, val_type}}) do
+        elixir_map
+        |> Enum.map(fn {k, v} ->
+          {to_erlang(k, key_type), to_erlang(v, val_type)}
+        end)
         |> :dict.from_list
       end
 
       def to_erlang(elixir_set=%HashSet{}, {:set, item_type}) do
         elixir_set
         |> Enum.map(&(to_erlang(&1, item_type)))
+        |> :sets.from_list
+      end
+
+      def to_erlang(elixir_set=%MapSet{}, {:set, item_type}) do
+        elixir_set
+        |> Enum.map(&to_erlang(&1, item_type))
         |> :sets.from_list
       end
 

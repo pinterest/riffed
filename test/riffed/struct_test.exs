@@ -302,4 +302,17 @@ defmodule StructTest do
     assert struct.values == [[%{1 => "a"}, %{2 => "b"}]]
   end
 
+  test "maps can be serialized to thrift properly" do
+    serialized = Structs.DefaultMap.new |>  Structs.to_erlang(nil)
+
+    assert {:DefaultMap, :dict.from_list([{"cats", 3}, {"dogs", 4}])} == serialized
+  end
+
+  test "mapsets can be serialized to thrift properly" do
+    serialized = Structs.DefaultSetStrings.new(values: Enum.into(["foo", "bar"], MapSet.new))
+    |> Structs.to_erlang(nil)
+
+    assert serialized == {:DefaultSetStrings, :sets.from_list(["foo", "bar"])}
+  end
+
 end
