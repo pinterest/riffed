@@ -286,8 +286,19 @@ defmodule StructTest do
   test "mapsets can be serialized to thrift properly" do
     serialized = Structs.DefaultSetStrings.new(values: Enum.into(["foo", "bar"], MapSet.new))
     |> Structs.to_erlang(nil)
-
-    assert serialized == {:DefaultSetStrings, :sets.from_list(["foo", "bar"])}
   end
 
+  test "exceptions are converted to erlang properly" do
+    exception = Structs.StructException.new(message: "Oops, something went wrong", code: 42)
+    assert {:StructException, "Oops, something went wrong", 42} == to_erlang(exception)
+  end
+
+  test "exceptions are converted to elixir correctly" do
+    erlang_tuple = {:StructException, "Hey", 45}
+
+    expected = erlang_tuple
+    |> to_elixir({:struct, {:struct_types, :StructException}})
+
+    assert expected == Structs.StructException.new(message: "Hey", code: 45)
+  end
 end

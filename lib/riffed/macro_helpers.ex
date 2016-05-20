@@ -1,14 +1,16 @@
 defmodule Riffed.MacroHelpers do
   @moduledoc false
-  def build_arg_list(size) when is_integer(size) do
+
+  def build_arg_list(size, prefix \\ nil) when is_integer(size) do
     case size do
       0 -> []
       size ->
-          Enum.map(1..size, fn(param_idx) ->
-                     :"arg_#{param_idx}"
-                     |> Macro.var(nil)
-                   end)
+        Enum.map(1..size, fn(param_idx) ->
+          :"#{prefix}arg_#{param_idx}"
+          |> Macro.var(nil)
+        end)
     end
+
   end
 
   def build_handler_tuple_args(param_meta) do

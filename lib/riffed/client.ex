@@ -59,23 +59,50 @@ defmodule Riffed.Client do
     end
   end
 
+  defp build_exception_handlers(exception_type, struct_module) do
+    {_seq, struct_def={:struct, {thrift_struct_module, exception_name}}} = exception_type
+    {:struct, detailed_meta} = :erlang.apply(thrift_struct_module, :struct_info_ext, [exception_name])
+    params = build_arg_list(Enum.count(detailed_meta), "_")
+    |> List.insert_at(0, exception_name)
+
+    args = {:{}, [], params}
+
+    quote do
+      defp raise_exception(ex=unquote(args)) do
+        ex = unquote(struct_module).to_elixir(ex, unquote(struct_def))
+        raise ex
+      end
+    end
+  end
+
   defp build_client_function(thrift_metadata, struct_module, function_name, overrides) do
     function_meta = Meta.metadata_for_function(thrift_metadata, function_name)
     param_meta = function_meta[:params]
+    exception_meta = function_meta[:exceptions]
     reply_meta = function_meta[:reply] |> Riffed.Struct.to_riffed_type_spec
-
     reply_meta = Riffed.Enumeration.get_overridden_type(function_name, :return_type, overrides, reply_meta)
 
     arg_list = build_arg_list(length(param_meta))
     {:{}, _, list_args} = build_handler_tuple_args(param_meta)
     casts = build_casts(function_name, struct_module, param_meta, overrides, :to_erlang)
+    exception_handlers = exception_meta
+    |> Enum.map(&build_exception_handlers(&1, struct_module))
 
     quote do
+
+      unquote_splicing(exception_handlers)
+
       def unquote(function_name)(unquote_splicing(arg_list)) do
         unquote_splicing(casts)
 
         rv = GenServer.call(__MODULE__, {unquote(function_name), unquote(list_args)})
-        unquote(struct_module).to_elixir(rv, unquote(reply_meta))
+        case rv do
+          {:exception, exception_record} ->
+            raise_exception(exception_record)
+
+          success ->
+            unquote(struct_module).to_elixir(rv, unquote(reply_meta))
+        end
       end
 
       def unquote(function_name)(client_pid, unquote_splicing(arg_list))
@@ -84,8 +111,15 @@ defmodule Riffed.Client do
           unquote_splicing(casts)
 
           rv = GenServer.call(client_pid, {unquote(function_name), unquote(list_args)})
-          unquote(struct_module).to_elixir(rv, unquote(reply_meta))
+          case rv do
+            {:exception, exception_record} ->
+              raise_exception(exception_record)
+            success ->
+              unquote(struct_module).to_elixir(success, unquote(reply_meta))
+          end
+
       end
+
     end
   end
 
@@ -189,6 +223,11 @@ defmodule Riffed.Client do
 
       unquote_splicing(client_functions)
 
+      # the default no-op for functions that don't have exceptions.
+      defp raise_exception(e) do
+        e
+      end
+
       def handle_call({call_name, args}, _parent, client) do
         {new_client, response} = call_thrift(client, call_name, args)
         {:reply, response, new_client}
@@ -218,6 +257,8 @@ defmodule Riffed.Client do
             call_thrift(new_client, call_name, args, retry_count + 1)
           err = {:error, _} ->
             {new_client, err}
+          exception = {:exception, exception_record} ->
+            {:new_client, exception}
           {:ok, rsp} ->
             {new_client, rsp}
           other = {other, rsp} ->
@@ -261,4 +302,5 @@ defmodule Riffed.Client do
       end
     end
   end
+
 end

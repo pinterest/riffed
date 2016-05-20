@@ -38,6 +38,11 @@ struct UserBoardResponse {
   2: structures.Board board;
 }
 
+exception UsageException {
+  1: string message,
+  2: i32 code
+}
+
 service Server {
   ConfigResponse config(1: ConfigRequest request, 2: i32 timestamp);
   ActivityState setUserState(1: User user, 2: ActivityState status);
@@ -62,4 +67,5 @@ service Server {
   list<structures.ListResponse> getListResponse();
   set<structures.SetResponse> getSetResponse();
   map<i64, UserBoardResponse> getUserBoardResponse();
+  void callAndBlowUp(1: string message, 2: string type) throws (1: structures.ServerException ex, 2: UsageException u);
 }

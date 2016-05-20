@@ -70,6 +70,13 @@ defmodule ClientTest do
     end
   end
 
+  def error_with(error) do
+    fn(client, fn_name, args)  ->
+      EchoServer.set_args({fn_name, args})
+      {client, {:exception, error}}
+    end
+  end
+
   test "it should convert nested structs into erlang" do
     converted = Models.to_erlang(config_request_struct, {:struct, {:models, :ConfigRequest}})
     assert {:ConfigRequest, "foo/bar", 32, {:User, "Foobie", "Barson", 1}} == converted
@@ -194,4 +201,12 @@ defmodule ClientTest do
     assert response == 1234
     assert {:functionWithoutNumberedArgs, [user_tuple, 23]}  == last_call
   end
+
+  test_with_mock "it should throw exceptions from the thrift server", :thrift_client, [call: error_with({:ServerException, "Server died", 500})] do
+
+    assert_raise Models.ServerException, fn ->
+      Client.callAndBlowUp("foo", "bar")
+    end
+  end
+
 end
