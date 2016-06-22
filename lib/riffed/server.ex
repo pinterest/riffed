@@ -101,10 +101,10 @@ defmodule Riffed.Server do
     end
   end
 
-  defp build_delegate_call(delegate_fn) do
+  defp build_delegate_call(delegate_fn, params_meta) do
     delegate_info = :erlang.fun_info(delegate_fn)
 
-    arg_list = build_arg_list(delegate_info[:arity])
+    arg_list = build_arg_list(params_meta)
 
     {{:., [], [{:__aliases__, [alias: false],
                 [delegate_info[:module]]}, delegate_info[:name]]}, [], arg_list}
@@ -116,7 +116,7 @@ defmodule Riffed.Server do
     params_meta = function_meta[:params]
     reply_meta = function_meta[:reply] |> Riffed.Struct.to_riffed_type_spec
     tuple_args = build_handler_tuple_args(params_meta)
-    delegate_call = build_delegate_call(delegate_fn)
+    delegate_call = build_delegate_call(delegate_fn, params_meta)
     casts = build_casts(thrift_fn_name, struct_module, params_meta, fn_overrides, :to_elixir)
     overridden_type = Riffed.Enumeration.get_overridden_type(thrift_fn_name, :return_type, fn_overrides, reply_meta)
 

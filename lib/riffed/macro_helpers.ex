@@ -1,24 +1,22 @@
 defmodule Riffed.MacroHelpers do
   @moduledoc false
-  def build_arg_list(size) when is_integer(size) do
-    case size do
-      0 -> []
-      size ->
-          Enum.map(1..size, fn(param_idx) ->
-                     :"arg_#{param_idx}"
-                     |> Macro.var(nil)
-                   end)
-    end
+  def build_arg_list(param_meta) do
+    param_meta
+    |> Enum.map(&build_arg(&1))
   end
 
   def build_handler_tuple_args(param_meta) do
-    args =  param_meta |> length |> build_arg_list
+    args =  build_arg_list(param_meta)
     {:{}, [], args}
   end
 
   def build_casts(function_name, struct_module, params_meta, overrides, cast_function) do
     params_meta
     |> Enum.map(&build_arg_cast(function_name, struct_module, &1, overrides, cast_function))
+  end
+
+  defp build_arg({index, _type}=arg) do
+    Macro.var(:"arg_#{abs(index)}", nil)
   end
 
   defp build_arg_cast(function_name, struct_module, param_meta, overrides, cast_function) do

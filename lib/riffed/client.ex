@@ -66,7 +66,7 @@ defmodule Riffed.Client do
 
     reply_meta = Riffed.Enumeration.get_overridden_type(function_name, :return_type, overrides, reply_meta)
 
-    arg_list = build_arg_list(length(param_meta))
+    arg_list = build_arg_list(param_meta)
     {:{}, _, list_args} = build_handler_tuple_args(param_meta)
     casts = build_casts(function_name, struct_module, param_meta, overrides, :to_erlang)
 
