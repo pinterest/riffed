@@ -40,7 +40,7 @@ struct UserBoardResponse {
 
 service Server {
   ConfigResponse config(1: ConfigRequest request, 2: i32 timestamp);
-  ActivityState setUserState(1: User user, 2: ActivityState status);
+  ActivityState setUserState(10: User user, 20: ActivityState status);
   map<string, i32> dictFun(1: map<string, i32> dict);
   map<string, User> dictUserFun(1: map<string, User> dict);
   set<string> setFun(1: set<string> mySet);
