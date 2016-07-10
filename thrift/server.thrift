@@ -38,6 +38,23 @@ struct UserBoardResponse {
   2: structures.Board board;
 }
 
+struct Xtruct {
+  1:  string string_thing,
+  4:  byte   byte_thing,
+  9:  i32    i32_thing,
+  11: i64    i64_thing
+}
+
+exception Xception {
+  1: i32 errorCode,
+  2: string message
+}
+
+exception Xception2 {
+  1: i32 errorCode,
+  2: Xtruct struct_thing
+}
+
 service Server {
   ConfigResponse config(1: ConfigRequest request, 2: i32 timestamp);
   ActivityState setUserState(10: User user, 20: ActivityState status);
@@ -62,4 +79,7 @@ service Server {
   list<structures.ListResponse> getListResponse();
   set<structures.SetResponse> getSetResponse();
   map<i64, UserBoardResponse> getUserBoardResponse();
+  void testException(1: string arg) throws (1: Xception err1);
+  Xtruct testMultiException(1: string arg0, 2: string arg1) throws (
+    1: Xception err1, 2: Xception2 err2);
 }
