@@ -161,6 +161,10 @@ defmodule Riffed.Client do
         GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
       end
 
+      def start_link(thrift_client: thrift_client) do
+        GenServer.start_link(__MODULE__, thrift_client)
+      end
+
       def start_link(thrift_client) do
         GenServer.start_link(__MODULE__, thrift_client, name: __MODULE__)
       end
@@ -240,12 +244,16 @@ defmodule Riffed.Client do
         GenServer.call(__MODULE__, {:disconnect, []})
       end
 
-      def close(pid) do
+      def close(pid) when is_pid(pid) do
         GenServer.call(pid, {:disconnect, []})
       end
 
       def reconnect do
         GenServer.call(__MODULE__, {:reconnect, []})
+      end
+
+      def reconnect(pid) when is_pid(pid) do
+        GenServer.call(pid, {:reconnect, []})
       end
 
       defp to_host(hostname) when is_list(hostname) do
