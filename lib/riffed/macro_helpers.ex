@@ -15,7 +15,7 @@ defmodule Riffed.MacroHelpers do
     |> Enum.map(&build_arg_cast(function_name, struct_module, &1, overrides, cast_function))
   end
 
-  defp build_arg({index, _type}=arg) do
+  defp build_arg({index, _type}) do
     Macro.var(:"arg_#{abs(index)}", nil)
   end
 

@@ -114,8 +114,8 @@ defmodule Riffed.Client do
     |> Keyword.delete(:host)
     |> Keyword.delete(:retries)
 
-    if Module.get_attribute(env.module, :auto_import_structs) do
-      struct_module = quote do
+    struct_module = if Module.get_attribute(env.module, :auto_import_structs) do
+      quote do
         defmodule unquote(struct_module) do
           use Riffed.Struct, unquote(Meta.structs_to_keyword(thrift_metadata))
           unquote_splicing(Riffed.Callbacks.reconstitute(env.module))
@@ -123,7 +123,7 @@ defmodule Riffed.Client do
         end
       end
     else
-      struct_module = quote do
+      quote do
       end
     end
 
@@ -159,6 +159,10 @@ defmodule Riffed.Client do
 
       def start_link do
         GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
+      end
+
+      def start_link(thrift_client: thrift_client) do
+        GenServer.start_link(__MODULE__, thrift_client)
       end
 
       def start_link(thrift_client) do
@@ -240,12 +244,16 @@ defmodule Riffed.Client do
         GenServer.call(__MODULE__, {:disconnect, []})
       end
 
-      def close(pid) do
+      def close(pid) when is_pid(pid) do
         GenServer.call(pid, {:disconnect, []})
       end
 
       def reconnect do
         GenServer.call(__MODULE__, {:reconnect, []})
+      end
+
+      def reconnect(pid) when is_pid(pid) do
+        GenServer.call(pid, {:reconnect, []})
       end
 
       defp to_host(hostname) when is_list(hostname) do
