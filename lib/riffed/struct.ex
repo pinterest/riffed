@@ -304,9 +304,10 @@ defmodule Riffed.Struct do
     callbacks = Riffed.Callbacks.build(env.module)
     enums = Riffed.Enumeration.build(env.module)
 
-    erlang_casts = []
-    if build_cast_to_erlang do
-      erlang_casts = Riffed.Enumeration.build_cast_return_value_to_erlang(env.module)
+    erlang_casts = if build_cast_to_erlang do
+      Riffed.Enumeration.build_cast_return_value_to_erlang(env.module)
+    else
+      []
     end
 
     quote do

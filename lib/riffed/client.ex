@@ -114,8 +114,8 @@ defmodule Riffed.Client do
     |> Keyword.delete(:host)
     |> Keyword.delete(:retries)
 
-    if Module.get_attribute(env.module, :auto_import_structs) do
-      struct_module = quote do
+    struct_module = if Module.get_attribute(env.module, :auto_import_structs) do
+      quote do
         defmodule unquote(struct_module) do
           use Riffed.Struct, unquote(Meta.structs_to_keyword(thrift_metadata))
           unquote_splicing(Riffed.Callbacks.reconstitute(env.module))
@@ -123,7 +123,7 @@ defmodule Riffed.Client do
         end
       end
     else
-      struct_module = quote do
+      quote do
       end
     end
 
