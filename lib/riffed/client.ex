@@ -92,24 +92,9 @@ defmodule Riffed.Client do
 
       unquote_splicing(exception_handlers)
 
-      def unquote(function_name)(unquote_splicing(arg_list)) do
-        unquote_splicing(casts)
-
-        rv = GenServer.call(__MODULE__, {unquote(function_name), unquote(list_args)})
-        case rv do
-          {:exception, exception_record} ->
-            raise_exception(exception_record)
-
-          success ->
-            unquote(struct_module).to_elixir(rv, unquote(reply_meta))
-        end
-      end
-
       def unquote(function_name)(client_pid, unquote_splicing(arg_list))
         when is_pid(client_pid) do
-
           unquote_splicing(casts)
-
           rv = GenServer.call(client_pid, {unquote(function_name), unquote(list_args)})
           case rv do
             {:exception, exception_record} ->
@@ -117,9 +102,13 @@ defmodule Riffed.Client do
             success ->
               unquote(struct_module).to_elixir(success, unquote(reply_meta))
           end
-
       end
 
+      def unquote(function_name)(unquote_splicing(arg_list)) do
+        __MODULE__
+        |> Process.whereis
+        |> unquote(function_name)(unquote_splicing(arg_list))
+      end
     end
   end
 
@@ -239,8 +228,13 @@ defmodule Riffed.Client do
 
       defp call_thrift(client, call_name, args, retry_count)
       when retry_count < unquote(num_retries) do
+        {thrift_client, response} =
+          try do
+            :thrift_client.call(client.client, call_name, args)
+          catch {new_client, exception} ->
+              {new_client, exception}
+          end
 
-        {thrift_client, response}  = :thrift_client.call(client.client, call_name, args)
         new_client = %Client{client | client: thrift_client}
         case response do
           {:error, :closed} ->

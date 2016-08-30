@@ -479,11 +479,18 @@ defmodule ServerTest do
   end
 
   test "It should properly encode and handle exceptions thrown by their handlers" do
-    {:exception, e} = Server.handle_function(:callAndBlowUp, {"hey there", "server"})
-    assert {:ServerException, "hey there", 392} == e
+    try do
+      Server.handle_function(:callAndBlowUp, {"hey there", "server"})
+      flunk("No exception")
+    catch e ->
+        assert {:ServerException, "hey there", 392} == e
+    end
 
-    {:exception, e2} = Server.handle_function(:callAndBlowUp, {"usage!", "usage"})
-    assert {:UsageException, "usage!", 291} == e2
+    try do
+      Server.handle_function(:callAndBlowUp, {"usage!", "usage"})
+    catch e2 ->
+        assert {:UsageException, "usage!", 291} == e2
+    end
   end
 
   test "It should not handle exceptions not defined in thrift" do
@@ -492,4 +499,5 @@ defmodule ServerTest do
     end
 
   end
+
 end
