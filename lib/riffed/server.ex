@@ -180,17 +180,14 @@ defmodule Riffed.Server do
 
     structs_keyword = ThriftMeta.Meta.structs_to_keyword(thrift_meta)
 
-    if Module.get_attribute(env.module, :auto_import_structs)  do
-      struct_module = quote do
+    struct_module = if Module.get_attribute(env.module, :auto_import_structs)  do
+      quote do
         defmodule unquote(struct_module) do
           @build_cast_to_erlang true
           use Riffed.Struct, unquote(structs_keyword)
           unquote_splicing(Riffed.Callbacks.reconstitute(env.module))
           unquote_splicing(Riffed.Enumeration.reconstitute(env.module))
         end
-      end
-    else
-      struct_module = quote do
       end
     end
 
