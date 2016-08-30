@@ -2,9 +2,21 @@ ExUnit.start(max_cases: 1)
 
 defmodule Utils do
 
-  def ensure_pid_stopped(server_pid) do
+  def ensure_pid_stopped(name) when is_atom(name) do
+    name
+    |> Process.whereis
+    |> ensure_pid_stopped
+  end
+
+  def ensure_pid_stopped(server_pid) when is_pid(server_pid) do
+    ref = Process.monitor(server_pid)
     Process.exit(server_pid, :normal)
-    wait_to_die(server_pid)
+    receive do
+      {:DOWN, ^ref, _, _, _} ->
+        :ok
+    after 1000 ->
+        {:error, :timeout}
+    end
   end
 
   def ensure_agent_stopped(module_name) do
@@ -12,18 +24,12 @@ defmodule Utils do
       case Process.whereis(module_name) do
         pid when is_pid(pid) ->
           Agent.stop(pid)
-          Utils.wait_to_die(pid)
+          Utils.ensure_pid_stopped(pid)
         _ ->
           nil
       end
     catch :exit, _ ->
         nil
-    end
-  end
-
-  def wait_to_die(pid) do
-    if Process.alive?(pid) do
-      wait_to_die(pid)
     end
   end
 end

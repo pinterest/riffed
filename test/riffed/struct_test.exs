@@ -284,7 +284,7 @@ defmodule StructTest do
   end
 
   test "mapsets can be serialized to thrift properly" do
-    serialized = Structs.DefaultSetStrings.new(values: Enum.into(["foo", "bar"], MapSet.new))
+    Structs.DefaultSetStrings.new(values: Enum.into(["foo", "bar"], MapSet.new))
     |> Structs.to_erlang(nil)
   end
 

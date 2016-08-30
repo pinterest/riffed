@@ -61,8 +61,14 @@ defmodule SharedClientTest do
   setup do
     {:ok, echo} = EchoServer.start_link
 
-    AccountClient.start_link(echo)
-    PrefClient.start_link(echo)
+    {:ok, account_client} = AccountClient.start_link(echo)
+    {:ok, pref_client} = PrefClient.start_link(echo)
+
+    on_exit fn ->
+      Utils.ensure_pid_stopped(echo)
+      Utils.ensure_pid_stopped(account_client)
+      Utils.ensure_pid_stopped(pref_client)
+    end
     :ok
   end
 

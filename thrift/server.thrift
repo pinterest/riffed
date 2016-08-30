@@ -43,6 +43,11 @@ exception UsageException {
   2: i32 code
 }
 
+struct Recursive {
+  1: optional Recursive r
+  2: optional i32 code
+}
+
 service Server {
   ConfigResponse config(1: ConfigRequest request, 2: i32 timestamp);
   ActivityState setUserState(1: User user, 2: ActivityState status);
@@ -68,4 +73,5 @@ service Server {
   set<structures.SetResponse> getSetResponse();
   map<i64, UserBoardResponse> getUserBoardResponse();
   void callAndBlowUp(1: string message, 2: string type) throws (1: structures.ServerException ex, 2: UsageException u);
+  Recursive getRecursive()
 }

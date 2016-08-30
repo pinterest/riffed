@@ -37,9 +37,10 @@ defmodule ClientTest do
 
   setup do
     {:ok, echo} = EchoServer.start_link
-    Client.start_link(echo)
+    {:ok, client} = Client.start_link(echo)
 
     on_exit fn ->
+      Utils.ensure_pid_stopped(client)
       Utils.ensure_pid_stopped(echo)
     end
 

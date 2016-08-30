@@ -77,10 +77,15 @@ defmodule Riffed.ThriftMeta do
     # and searching for them
     {:struct, struct_info} = :erlang.apply(module, :struct_info, [struct_name])
 
-    Enum.reduce(struct_info, meta, fn({_idx, info}, meta) ->
-                         find_struct(meta, info)
-                       end)
-    |> Meta.append_struct([:struct, info])
+    struct_marker = [:struct, info]
+    if struct_marker in meta.structs do
+      meta
+    else
+      meta = Meta.append_struct(meta, struct_marker)
+      Enum.reduce(struct_info, meta, fn({_idx, inner_info}, meta) ->
+        find_struct(meta, inner_info)
+      end)
+    end
   end
 
   defp find_struct(meta=%Meta{}, _) do
