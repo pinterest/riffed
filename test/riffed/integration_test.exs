@@ -5,7 +5,10 @@ defmodule IntegrationTest do
     use Riffed.Server, service: :server_thrift,
     structs: IntegServer.Models,
     functions: [getUserStates: &IntegServer.Handlers.get_user_states/1,
-                echoString: &IntegServer.Handlers.echo_string/1],
+                echoString: &IntegServer.Handlers.echo_string/1,
+                callAndBlowUp: &IntegServer.Handlers.call_and_blow_up/2
+               ],
+
     server: {
             :thrift_socket_server,
             port: 22831,
@@ -32,6 +35,10 @@ defmodule IntegrationTest do
 
       def echo_string(input) do
         input
+      end
+
+      def call_and_blow_up(message, _) do
+        raise IntegServer.Models.UsageException.new(message: message, code: 999)
       end
     end
   end
@@ -61,7 +68,7 @@ defmodule IntegrationTest do
                   framed: true,
                   retries: 3],
     service: :server_thrift,
-    import: [:getUserStates, :echoString]
+    import: [:getUserStates, :echoString, :callAndBlowUp]
   end
 
   defmodule EnumerizedClient do
@@ -179,4 +186,10 @@ defmodule IntegrationTest do
     assert nil == HostAndPortClient.echoString(client, nil)
   end
 
+  test "can handle exceptions" do
+    EasyClient.start_link
+    assert_raise EasyClient.Models.UsageException, fn ->
+      EasyClient.callAndBlowUp("foo", "bar")
+    end
+  end
 end

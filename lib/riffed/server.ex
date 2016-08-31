@@ -123,9 +123,9 @@ defmodule Riffed.Server do
     quote do
       try do
         unquote(handler_call)
+
       rescue e in unquote(elixir_exceptions) -> e
-        erl_exc = unquote(struct_module).to_erlang(e, nil)
-        {:exception, erl_exc}
+        throw unquote(struct_module).to_erlang(e, nil)
       end
     end
   end
