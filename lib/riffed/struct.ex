@@ -377,8 +377,6 @@ defmodule Riffed.Struct do
                            names
                        end
         exceptions = thrift_module.exception_names
-        {structs, _} = partition_structs_and_exceptions(thrift_module,
-                                                        struct_names)
         data = Enum.reduce(struct_names, data,
           fn(struct_name, data) ->
             build_struct_and_conversion_function(data, env.module, dest_module, struct_name, thrift_module)
@@ -387,13 +385,13 @@ defmodule Riffed.Struct do
                     &(build_exception_and_conversion_function(&2, env.module, dest_module, &1, thrift_module)))
       end)
 
-
     callbacks = Riffed.Callbacks.build(env.module)
     enums = Riffed.Enumeration.build(env.module)
 
-    erlang_casts = []
-    if build_cast_to_erlang do
-      erlang_casts = Riffed.Enumeration.build_cast_return_value_to_erlang(env.module)
+    erlang_casts = if build_cast_to_erlang do
+      Riffed.Enumeration.build_cast_return_value_to_erlang(env.module)
+    else
+      []
     end
 
     quote do
