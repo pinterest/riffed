@@ -249,7 +249,7 @@ defmodule Riffed.Client do
           err = {:error, _} ->
             {new_client, err}
           exception = {:exception, exception_record} ->
-            {:new_client, exception}
+            {new_client, exception}
           {:ok, rsp} ->
             {new_client, rsp}
           other = {other, rsp} ->
