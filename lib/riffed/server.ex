@@ -110,27 +110,38 @@ defmodule Riffed.Server do
                 [delegate_info[:module]]}, delegate_info[:name]]}, [], arg_list}
   end
 
-  defp wrap_with_exception_handlers([], _struct_module, handler_call) do
+  defp wrap_with_exception_handlers(_, [], _struct_module, handler_call) do
     handler_call
   end
 
-  defp wrap_with_exception_handlers(exceptions, struct_module, handler_call) do
+  defp wrap_with_exception_handlers(is_auto_import, exceptions, struct_module, handler_call) do
     elixir_exceptions = exceptions
-    |> Enum.map(fn({_seq,{:struct, {_thrift_module, ex_name}}}) ->
-      Module.concat(struct_module, ex_name)
+    |> Enum.map(fn({_seq, {:struct, {thrift_module, ex_name}}}) ->
+
+      # if you're auto importing the structs, they'll all be in this module, and won't have
+      # their destinations changed.
+      dest_module = case is_auto_import do
+                      true ->
+                        struct_module
+                      _ ->
+                        struct_module.destination_module(thrift_module)
+                    end
+
+      dest_module
+      |> Module.concat(ex_name)
     end)
 
     quote do
       try do
         unquote(handler_call)
 
-      rescue e in unquote(elixir_exceptions) -> e
+      rescue e in unquote(elixir_exceptions) ->
         throw unquote(struct_module).to_erlang(e, nil)
       end
     end
   end
 
-  defp build_handler(meta=%Meta{}, struct_module, thrift_fn_name, delegate_fn, fn_overrides) do
+  defp build_handler(meta=%Meta{}, struct_module, thrift_fn_name, delegate_fn, fn_overrides, is_auto_import) do
 
     function_meta = Meta.metadata_for_function(meta, thrift_fn_name)
     params_meta = function_meta[:params]
@@ -142,6 +153,7 @@ defmodule Riffed.Server do
     overridden_type = Riffed.Enumeration.get_overridden_type(thrift_fn_name, :return_type, fn_overrides, reply_meta)
 
     exception_handling = wrap_with_exception_handlers(
+      is_auto_import,
       exception_meta,
       struct_module,
       quote do
@@ -206,13 +218,14 @@ defmodule Riffed.Server do
     after_start = Module.get_attribute(env.module, :after_start) || quote do: fn (_, _) -> nil end
     error_handler = Module.get_attribute(env.module, :error_handler) |> build_error_handler
 
+    structs_are_auto_imported = Module.get_attribute(env.module, :auto_import_structs) or false
     function_handlers = Enum.map(functions,
       fn({fn_name, delegate}) ->
-        build_handler(thrift_meta, struct_module, fn_name, delegate, overrides.functions) end)
+        build_handler(thrift_meta, struct_module, fn_name, delegate, overrides.functions, structs_are_auto_imported) end)
 
     structs_keyword = ThriftMeta.Meta.structs_to_keyword(thrift_meta)
 
-    struct_module = if Module.get_attribute(env.module, :auto_import_structs)  do
+    struct_module = if structs_are_auto_imported do
       quote do
         defmodule unquote(struct_module) do
           @build_cast_to_erlang true

@@ -64,4 +64,8 @@ defmodule SharingTests do
     assert {:AccountList, [{:Account, ^user_id, {:Preferences, ^user_id, false}, ^email, ^created_at, ^updated_at}], 2} = erlangified
   end
 
+  test "it should be able to find out where a thrift struct ended up" do
+    assert SharedStructs.destination_module(:account_types) == AccountStructs
+    assert SharedStructs.destination_module(:status_types) == SharedStructs.Status
+  end
 end

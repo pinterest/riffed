@@ -353,6 +353,19 @@ defmodule Riffed.Struct do
     |> Enum.partition(&MapSet.member?(struct_names, &1))
   end
 
+  def build_struct_finders(this_module, module_mapping) do
+    module_mapping
+    |> Enum.map(fn {source_name, dest_name} ->
+      dest = Module.concat(this_module, dest_name)
+
+      quote do
+        def destination_module(unquote(source_name)) do
+          unquote(dest)
+        end
+      end
+    end)
+  end
+
   defmacro __before_compile__(env) do
     options = Module.get_attribute(env.module, :thrift_options)
     build_cast_to_erlang = Module.get_attribute(env.module, :build_cast_to_erlang)
@@ -395,6 +408,12 @@ defmodule Riffed.Struct do
     end
 
     quote do
+      unquote_splicing(build_struct_finders(env.module, module_mapping))
+
+      def destination_module(_) do
+        __MODULE__
+      end
+
       unquote_splicing(struct_data.struct_modules)
       unquote_splicing(struct_data.tuple_converters)
       unquote_splicing(enums.modules)
