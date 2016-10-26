@@ -75,12 +75,12 @@ defmodule SharedClientTest do
 
   test_with_mock "it should get preferences", :thrift_client,
   [call: respond_with({:Preferences, 1234, true})] do
-    assert Factory.preferences(1234) == PrefClient.getPreferences(1234)
+    assert Factory.preferences(1234) == PrefClient.getPreferences!(1234)
   end
 
   test_with_mock "it should get the account", :thrift_client,
   [call: respond_with({:Account, 1234, {:Preferences, 1234, true},
                        "foo@bar.com", 12345, 67890})] do
-    assert Factory.account(1234) == AccountClient.getAccount(1234)
+    assert Factory.account(1234) == AccountClient.getAccount!(1234)
   end
 end
