@@ -68,9 +68,8 @@ defmodule Riffed.Client do
     args = {:{}, [], params}
 
     quote do
-      defp raise_exception(ex=unquote(args)) do
-        ex = unquote(struct_module).to_elixir(ex, unquote(struct_def))
-        raise ex
+      defp cast_to_exception(ex=unquote(args)) do
+        unquote(struct_module).to_elixir(ex, unquote(struct_def))
       end
     end
   end
@@ -82,6 +81,7 @@ defmodule Riffed.Client do
     reply_meta = function_meta[:reply] |> Riffed.Struct.to_riffed_type_spec
     reply_meta = Riffed.Enumeration.get_overridden_type(function_name, :return_type, overrides, reply_meta)
 
+    exception_function_name = :"#{function_name}!"
     arg_list = build_arg_list(length(param_meta))
     {:{}, _, list_args} = build_handler_tuple_args(param_meta)
     casts = build_casts(function_name, struct_module, param_meta, overrides, :to_erlang)
@@ -92,16 +92,35 @@ defmodule Riffed.Client do
 
       unquote_splicing(exception_handlers)
 
+      def unquote(exception_function_name)(client_pid, unquote_splicing(arg_list))
+      when is_pid(client_pid) do
+
+          case unquote(function_name)(client_pid, unquote_splicing(arg_list)) do
+            {:error, exception} ->
+              raise exception
+
+            {:ok, response} ->
+              response
+          end
+      end
+
       def unquote(function_name)(client_pid, unquote_splicing(arg_list))
         when is_pid(client_pid) do
           unquote_splicing(casts)
           rv = GenServer.call(client_pid, {unquote(function_name), unquote(list_args)})
           case rv do
-            {:exception, exception_record} ->
-              raise_exception(exception_record)
+            {:exception, ex} ->
+              {:error, cast_to_exception(ex)}
+
             success ->
-              unquote(struct_module).to_elixir(success, unquote(reply_meta))
+              {:ok, unquote(struct_module).to_elixir(success, unquote(reply_meta))}
           end
+      end
+
+      def unquote(exception_function_name)(unquote_splicing(arg_list)) do
+        __MODULE__
+        |> Process.whereis
+        |> unquote(exception_function_name)(unquote_splicing(arg_list))
       end
 
       def unquote(function_name)(unquote_splicing(arg_list)) do
@@ -210,7 +229,7 @@ defmodule Riffed.Client do
       unquote_splicing(client_functions)
 
       # the default no-op for functions that don't have exceptions.
-      defp raise_exception(e) do
+      defp cast_to_exception(e) do
         e
       end
 

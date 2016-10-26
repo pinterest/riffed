@@ -86,7 +86,7 @@ defmodule ClientTest do
   test_with_mock "it should convert structs into their correct types", :thrift_client,
   [call: respond_with({:ConfigResponse, "foo/bar", 3, 32})] do
 
-    response = Client.config(config_request_struct, 3)
+    {:ok, response} = Client.config(config_request_struct, 3)
 
     assert Models.ConfigResponse.new(template: "foo/bar", requestCount: 3, per: 32) == response
     assert {:config, [{:ConfigRequest, "foo/bar", 32, {:User, "Foobie", "Barson", 1}}, 3]} == EchoServer.last_call
@@ -96,7 +96,7 @@ defmodule ClientTest do
   [call: respond_with(:dict.from_list([{"foobar", user_tuple}]))] do
     dict_arg = Enum.into([{"foobar", user_struct}], HashDict.new)
 
-    response = Client.dictUserFun(dict_arg)
+    {:ok, response} = Client.dictUserFun(dict_arg)
 
     assert dict_arg == response
     expected = {:dictUserFun, [:dict.from_list([{"foobar", user_tuple}])]}
@@ -107,7 +107,7 @@ defmodule ClientTest do
   [call: respond_with(:sets.from_list([user_tuple]))] do
     set_arg = Enum.into([user_struct], HashSet.new)
 
-    response = Client.setUserFun(set_arg)
+    {:ok, response} = Client.setUserFun(set_arg)
 
     assert set_arg == response
     {call_name, [set_arg]} = EchoServer.last_call
@@ -119,7 +119,8 @@ defmodule ClientTest do
   [call: respond_with(3)] do
     user_state = Models.ActivityState.inactive
 
-    response = Client.getState(user_state)
+    {:ok, response} = Client.getState(user_state)
+
     assert response == Models.ActivityState.banned
 
     {call_name, [state]} = EchoServer.last_call
@@ -130,7 +131,9 @@ defmodule ClientTest do
 
   test_with_mock "it should convert enums returned by client functions", :thrift_client,
   [call: respond_with(2)] do
-    response = Client.getTranslatedState(Models.ActivityState.banned)
+
+    {:ok, response} = Client.getTranslatedState(Models.ActivityState.banned)
+
     assert response == Models.ActivityState.inactive
     assert {:getTranslatedState, [3]} == EchoServer.last_call
   end
@@ -141,7 +144,8 @@ defmodule ClientTest do
      {client, {:ok, 3}}
    end] do
 
-    response = Client.echoState(Models.ActivityState.active)
+    {:ok, response} = Client.echoState(Models.ActivityState.active)
+
     assert response == Models.ActivityState.banned
     [last_call] = EchoServer.last_call
     assert Models.ActivityState.active.value == last_call
@@ -149,7 +153,9 @@ defmodule ClientTest do
 
   test_with_mock "it should use callbacks to convert things to elixir", :thrift_client,
   [call: fn(client, _, _) -> {client, {:ok, {:LoudUser, "stinky", "stinkman"}}} end] do
-    response = Client.getLoudUser()
+
+    {:ok, response} = Client.getLoudUser()
+
     assert response == Models.LoudUser.new(firstName: "STINKY", lastName: "STINKMAN")
   end
 
@@ -166,14 +172,16 @@ defmodule ClientTest do
   test_with_mock "it should convert enums in lists", :thrift_client,
   [call: respond_with([3, 2, 1])] do
 
-    response = Client.echoActivityStateList([Models.ActivityState.active])
+    {:ok, response} = Client.echoActivityStateList([Models.ActivityState.active])
+
     assert [Models.ActivityState.banned, Models.ActivityState.inactive, Models.ActivityState.active] == response
    end
 
   test_with_mock "it should convert enums in maps", :thrift_client,
   [call: respond_with(:dict.from_list([{"foobar", 3}, {"barfoo", 2}]))] do
 
-    response = Client.getUserStates(["foobar", "barfoo"])
+    {:ok, response} = Client.getUserStates(["foobar", "barfoo"])
+
     assert Models.ActivityState.banned == response["foobar"]
     assert Models.ActivityState.inactive == response["barfoo"]
   end
@@ -181,7 +189,7 @@ defmodule ClientTest do
   test_with_mock "it should convert enums in sets", :thrift_client,
   [call: respond_with(:sets.from_list([3, 2]))] do
 
-    response = Client.getAllStates()
+    {:ok, response} = Client.getAllStates()
     assert Enum.into([Models.ActivityState.banned,
                       Models.ActivityState.inactive], HashSet.new) == response
   end
@@ -189,14 +197,17 @@ defmodule ClientTest do
   test_with_mock "it should convert things in response data structures", :thrift_client,
   [call: respond_with({:ResponseWithMap, :dict.from_list([{1234, user_tuple}])})] do
 
-    response = Client.getUsers(1234)
+    {:ok, response} = Client.getUsers(1234)
+
     user_dict = Enum.into([{1234, user_struct}], HashDict.new)
     assert Models.ResponseWithMap.new(users: user_dict) == response
   end
 
   test_with_mock "it should handle functions defined without argument numbers", :thrift_client,
   [call: respond_with(1234)] do
-    response = Client.functionWithoutNumberedArgs(user_struct, 23)
+
+    {:ok, response} = Client.functionWithoutNumberedArgs(user_struct, 23)
+
     last_call = EchoServer.last_call
 
     assert response == 1234
@@ -205,8 +216,10 @@ defmodule ClientTest do
 
   test_with_mock "it should throw exceptions from the thrift server", :thrift_client, [call: error_with({:ServerException, "Server died", 500})] do
 
+    assert {:error, %Models.ServerException{}} = Client.callAndBlowUp("foo", "bar")
+
     assert_raise Models.ServerException, fn ->
-      Client.callAndBlowUp("foo", "bar")
+      Client.callAndBlowUp!("foo", "bar")
     end
   end
 

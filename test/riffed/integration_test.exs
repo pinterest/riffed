@@ -125,27 +125,32 @@ defmodule IntegrationTest do
 
   test "The easy client should work" do
     EasyClient.start_link
-    rsp = EasyClient.getUserStates(["foo"])
+    rsp = EasyClient.getUserStates!(["foo"])
+
     assert 1 == rsp["foo"]
   end
 
   test "The enumerized client should convert into structs" do
     EnumerizedClient.start_link
-    response = EnumerizedClient.getUserStates(["foo"])
+
+    assert {:ok, _} = EnumerizedClient.getUserStates(["foo"])
+    response = EnumerizedClient.getUserStates!(["foo"])
 
     assert EnumerizedClient.Models.ActivityState.active == response["foo"]
   end
 
   test "The host and port client should work" do
     {:ok, client} = HostAndPortClient.start_link("localhost", 22831)
-    response = HostAndPortClient.getUserStates(client, ["foo"])
+
+    assert {:ok, _} = HostAndPortClient.getUserStates(client, ["foo"])
+    response = HostAndPortClient.getUserStates!(client, ["foo"])
 
     assert 1 == response["foo"]
   end
 
   test "unicode text should be supported" do
     EasyClient.start_link
-    rsp = EasyClient.echoString("マイケルさんはすごいですよ。")
+    rsp = EasyClient.echoString!("マイケルさんはすごいですよ。")
     assert "マイケルさんはすごいですよ。" == rsp
   end
 
@@ -153,8 +158,10 @@ defmodule IntegrationTest do
     refute File.exists?("rift_error_test.log")
     {:ok, client} = ErrorHandlerClient.start_link
     ErrorHandlerClient.close(client)
+
     # Sleep for a bit while the server writes to file
     :timer.sleep(100)
+
     assert File.read!("rift_error_test.log") == "The client left us in the dust"
     File.rm! "rift_error_test.log"
   end
@@ -162,34 +169,36 @@ defmodule IntegrationTest do
   test "Can reconnect client" do
     EasyClient.start_link
     EasyClient.reconnect
-    rsp = EasyClient.getUserStates(["foo"])
+    rsp = EasyClient.getUserStates!(["foo"])
     assert 1 == rsp["foo"]
   end
 
   test "Disconnected client should return :disconnected if calls are made" do
     EasyClient.start_link
     EasyClient.close
-    assert :disconnected == EasyClient.getUserStates(["foo"])
+
+    assert :disconnected == EasyClient.getUserStates!(["foo"])
   end
 
   test "Can reconnect client after disconnecting" do
     EasyClient.start_link
     EasyClient.close
     EasyClient.reconnect
-    rsp = EasyClient.getUserStates(["foo"])
+    rsp = EasyClient.getUserStates!(["foo"])
     assert 1 == rsp["foo"]
   end
 
   test "Can send empty strings" do
     {:ok, client} = HostAndPortClient.start_link("localhost", 22831)
 
-    assert nil == HostAndPortClient.echoString(client, nil)
+    assert nil == HostAndPortClient.echoString!(client, nil)
   end
 
   test "can handle exceptions" do
     EasyClient.start_link
+    assert {:error, %EasyClient.Models.UsageException{}} = EasyClient.callAndBlowUp("foo", "bar")
     assert_raise EasyClient.Models.UsageException, fn ->
-      EasyClient.callAndBlowUp("foo", "bar")
+      EasyClient.callAndBlowUp!("foo", "bar")
     end
   end
 end
