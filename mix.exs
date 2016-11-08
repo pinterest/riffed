@@ -5,7 +5,7 @@ defmodule Riffed.Mixfile do
     [app: :riffed,
      name: "Riffed",
      version: "1.0.0",
-     elixir: "~> 1.0",
+     elixir: "~> 1.2",
      deps: deps,
      compilers: compilers(Mix.env),
      erlc_paths: ["src", "ext/thrift/lib/erl/src"],
