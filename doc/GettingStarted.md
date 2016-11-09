@@ -6,7 +6,7 @@ We'll assume you already have a Mix project to work with called `rift_tutorial`.
 
 ```elixir
 def deps do
-  [{:riffed, github: "pinterest/riffed", tag: "1.0.0", submodules: true}]
+  [{:riffed, github: "pinterest/riffed"}]
 end
 ```
 
