@@ -1,7 +1,5 @@
-%{"exlager": {:git, "https://github.com/khia/exlager.git", "abb13435a540731b8b9c5f649f4d94f11a27c1f7", []},
-  "goldrush": {:git, "git://github.com/DeadZen/goldrush.git", "212299233c7e7eb63a97be2777e1c05ebaa58dbe", [tag: "0.1.8"]},
-  "lager": {:git, "https://github.com/basho/lager.git", "b2cb2735713e3021e0761623ff595d53a545438e", []},
+%{"goldrush": {:git, "https://github.com/basho/goldrush.git", "8f1b715d36b650ec1e1f5612c00e28af6ab0de82", [tag: "0.1.9"]},
   "meck": {:hex, :meck, "0.8.4"},
   "mock": {:git, "https://github.com/jjh42/mock.git", "cac37bc0567d8f61e542dbe29944844261888b3a", []},
-  "riffed": {:git, "https://github.com/pinterest/riffed.git", "bca4a4e4e1b4327007a6850787709be59f06a48e", []},
+  "riffed": {:git, "https://github.com/pinterest/riffed.git", "8e62de4a6e2f490acc6732087b4b0e3b2c83a390", []},
   "thrift": {:hex, :thrift, "1.3.0", "d12c2689ba4dcfa33ecd2c99d783cc205fa2a47176c8c972a7e0e5b137023ffd", [:mix], []}}

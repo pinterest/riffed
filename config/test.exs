@@ -1,7 +1,5 @@
 use Mix.Config
 
-config :lager, [
-  handlers: [
-    lager_console_backend: :critical,
-  ]
-]
+# Restrict test log output to just errors.
+config :logger, :console,
+  level: :error
