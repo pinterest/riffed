@@ -100,10 +100,10 @@ defmodule Riffed.Client do
     thrift_client_module = Module.get_attribute(env.module, :thrift_module)
     functions = Module.get_attribute(env.module, :functions)
 
-
     thrift_metadata = extract(thrift_client_module, functions)
     num_retries = opts[:retries] || 0
 
+    client_module_doc = "Thrift client implementation for the `#{thrift_client_module}` module"
     client_functions = build_client_functions(functions, thrift_metadata, struct_module, overrides)
 
     hostname = opts[:host]
@@ -129,13 +129,25 @@ defmodule Riffed.Client do
       unquote(struct_module)
 
       defmodule Client do
+        @moduledoc unquote(client_module_doc)
+
         defstruct client: nil, connect: nil
 
+        @type connect_fn() :: {:ok, :thrift_client.tclient} | {:error, any()}
+
+        @doc """
+        Returns a new client using on the given connection function.
+        """
+        @spec new(connect_fn) :: %Client{}
         def new(connect_fn) do
           {:ok, client} = connect_fn.()
           %Client{client: client, connect: connect_fn}
         end
 
+        @doc """
+        Reconnects and returns the new client.
+        """
+        @spec reconnect(client :: %Client{}) :: %Client{}
         def reconnect(client=%Client{}) do
           {:ok, new_client} = client.connect.()
           %Client{client | client: new_client}
