@@ -137,7 +137,7 @@ defmodule Riffed.Server do
   defp build_error_handler(nil) do
     quote do
       def handle_error(_, :timeout) do
-        Logger.notice("Connection to client timed out.")
+        Logger.warn("Connection to client timed out.")
         {:ok, :timeout}
       end
 
