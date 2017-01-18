@@ -308,7 +308,7 @@ defmodule ServerTest do
   end
 
   test "it should convert structs to and from elixir" do
-    request = {:ConfigRequest, "users/:me", 1000, user_tuple}
+    request = {:ConfigRequest, "users/:me", 1000, user_tuple()}
 
     {:reply, response} = Server.handle_function(:config, {request, 1000})
 
@@ -339,7 +339,7 @@ defmodule ServerTest do
   end
 
   test "dicts with structs are converted" do
-    user_dict = :dict.from_list([{"steve", user_tuple}])
+    user_dict = :dict.from_list([{"steve", user_tuple()}])
 
     {:reply, response} = Server.handle_function(:dictUserFun, {user_dict})
 
@@ -353,7 +353,7 @@ defmodule ServerTest do
 
   test "sets of structs are converted" do
     user = Data.User.new(firstName: "Steve", lastName: "Cohen", state: Data.ActivityState.active)
-    param = :sets.from_list([user_tuple])
+    param = :sets.from_list([user_tuple()])
 
     {:reply, response} = Server.handle_function(:setUserFun, {param})
 
