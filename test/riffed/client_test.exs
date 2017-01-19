@@ -83,7 +83,7 @@ defmodule ClientTest do
     Models.ConfigRequest.new(
       template: "foo/bar",
       requestCount: 32,
-      user: user_struct)
+      user: user_struct())
   end
 
   def respond_with(response) do
@@ -94,33 +94,33 @@ defmodule ClientTest do
   end
 
   test "it should convert nested structs into erlang" do
-    converted = Models.to_erlang(config_request_struct, {:struct, {:models, :ConfigRequest}})
+    converted = Models.to_erlang(config_request_struct(), {:struct, {:models, :ConfigRequest}})
     assert {:ConfigRequest, "foo/bar", 32, {:User, "Foobie", "Barson", 1}} == converted
   end
 
   test_with_mock "it should convert structs into their correct types", :thrift_client,
   [call: respond_with({:ConfigResponse, "foo/bar", 3, 32})] do
 
-    response = Client.config(config_request_struct, 3)
+    response = Client.config(config_request_struct(), 3)
 
     assert Models.ConfigResponse.new(template: "foo/bar", requestCount: 3, per: 32) == response
     assert {:config, [{:ConfigRequest, "foo/bar", 32, {:User, "Foobie", "Barson", 1}}, 3]} == EchoServer.last_call
   end
 
   test_with_mock "it should convert structs in dicts", :thrift_client,
-  [call: respond_with(:dict.from_list([{"foobar", user_tuple}]))] do
-    dict_arg = Enum.into([{"foobar", user_struct}], HashDict.new)
+  [call: respond_with(:dict.from_list([{"foobar", user_tuple()}]))] do
+    dict_arg = Enum.into([{"foobar", user_struct()}], HashDict.new)
 
     response = Client.dictUserFun(dict_arg)
 
     assert dict_arg == response
-    expected = {:dictUserFun, [:dict.from_list([{"foobar", user_tuple}])]}
+    expected = {:dictUserFun, [:dict.from_list([{"foobar", user_tuple()}])]}
     assert expected == EchoServer.last_call
   end
 
   test_with_mock "it should convert structs in sets", :thrift_client,
-  [call: respond_with(:sets.from_list([user_tuple]))] do
-    set_arg = Enum.into([user_struct], HashSet.new)
+  [call: respond_with(:sets.from_list([user_tuple()]))] do
+    set_arg = Enum.into([user_struct()], HashSet.new)
 
     response = Client.setUserFun(set_arg)
 
@@ -202,19 +202,19 @@ defmodule ClientTest do
   end
 
   test_with_mock "it should convert things in response data structures", :thrift_client,
-  [call: respond_with({:ResponseWithMap, :dict.from_list([{1234, user_tuple}])})] do
+  [call: respond_with({:ResponseWithMap, :dict.from_list([{1234, user_tuple()}])})] do
 
     response = Client.getUsers(1234)
-    user_dict = Enum.into([{1234, user_struct}], HashDict.new)
+    user_dict = Enum.into([{1234, user_struct()}], HashDict.new)
     assert Models.ResponseWithMap.new(users: user_dict) == response
   end
 
   test_with_mock "it should handle functions defined without argument numbers", :thrift_client,
   [call: respond_with(1234)] do
-    response = Client.functionWithoutNumberedArgs(user_struct, 23)
+    response = Client.functionWithoutNumberedArgs(user_struct(), 23)
     last_call = EchoServer.last_call
 
     assert response == 1234
-    assert {:functionWithoutNumberedArgs, [user_tuple, 23]}  == last_call
+    assert {:functionWithoutNumberedArgs, [user_tuple(), 23]}  == last_call
   end
 end
