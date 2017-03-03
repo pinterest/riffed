@@ -227,7 +227,7 @@ This can be mitigated by using shared structs in a common module and controlling
 defmodule Models do
   use Riffed.Struct, dest_modules: [common_types: Common,
                                     server_types: Server,
-           i                        client_types: Client],
+                                    client_types: Client],
                     common_types: [:RequestContext, :User],
                     server_types: [:AccessControlList],
                     client_types: [:UserList]
