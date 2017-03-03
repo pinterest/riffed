@@ -219,18 +219,18 @@ end
 
 ## Advanced Struct Packaging
 
-Often, thrift files will make use of `include` statements to share structs. This can present a namespacing problem if you're running several thrift servers or clients that all make use of a common thrift file. This is because each server or client will import the struct separately and produce incompatible structs. 
+Often, thrift files will make use of `include` statements to share structs. This can present a namespacing problem if you're running several thrift servers or clients that all make use of a common thrift file. This is because each server or client will import the struct separately and produce incompatible structs.
 
 This can be mitigated by using shared structs in a common module and controlling how they're imported. To control the destination module, use the `dest_modules` keyword dict:
 
 ```elixir
-defmodule Models do 
-  use Rift.Struct, dest_modules: [common_types: Common, 
-	                               server_types: Server,
-	                               client_types: Client],
-	                common_types: [:RequestContext, :User],
-	                server_types: [:AccessControlList],
-	                client_types: [:UserList]
+defmodule Models do
+  use Riffed.Struct, dest_modules: [common_types: Common,
+                                    server_types: Server,
+           i                        client_types: Client],
+                    common_types: [:RequestContext, :User],
+                    server_types: [:AccessControlList],
+                    client_types: [:UserList]
 
   defenum Common.UserState do
     :inactive -> 1
@@ -241,23 +241,23 @@ defmodule Models do
   enumerize_struct Common.User, state: Common.UserState
 end
 
-defmodule Server do 
-  use Rift.Server, service: :server_thrift,
+defmodule Server do
+  use Riffed.Server, service: :server_thrift,
   auto_import_structs: false,
   structs: Models
   ...
 end
 
 defmodule Client do
-  use Rift.Client, 
+  use Riffed.Client,
   auto_import_structs: false,
   structs: Models
   ...
 end
 ```
 
-The above configuration will produce three different modules, `Models.Common`, `Models.Server` and `Models.Client`. The `Models` module 
-is capable of serializing and deserializing all the types defined in the three submodules, and should be used as your `:structs` module in your client and servers. 
+The above configuration will produce three different modules, `Models.Common`, `Models.Server` and `Models.Client`. The `Models` module
+is capable of serializing and deserializing all the types defined in the three submodules, and should be used as your `:structs` module in your client and servers.
 
 As you can see above, you can also namespace enumerations.
 

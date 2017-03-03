@@ -2,7 +2,7 @@
 
 This guide will bring you step-by-step through building your first Riffed server and client. The service will allow for registering, fetching, and banning users. An example of the completed tutorial can be found in `examples/tutorial/`.
 
-We'll assume you already have a Mix project to work with called `rift_tutorial`. Feel free to go create one if you don't, using `mix new rift_tutorial --sup`. Then add Riffed as a dependency:
+We'll assume you already have a Mix project to work with called `riffed_tutorial`. Feel free to go create one if you don't, using `mix new riffed_tutorial --sup`. Then add Riffed as a dependency:
 
 ```elixir
 def deps do
@@ -50,7 +50,7 @@ service Tutorial {
 
 ## 2. Building the Server
 
-Now go ahead and create the file `lib/rift_tutorial/server.ex`. We'll start with the contents of the file:
+Now go ahead and create the file `lib/riffed_tutorial/server.ex`. We'll start with the contents of the file:
 
 ```elixir
 defmodule RiffedTutorial.Server do
@@ -100,7 +100,7 @@ Lastly, there are two more macros `enumerize_struct` and `enumerize_function` wh
 
 Now that the server is configured, the method calls need to be handled. This step is where you come in; you must build the actual methods that do the server logic. In this example, we'll implement a simple ETS (Erlang Term Storage) for a user database, though typically you would add logic for connecting to your own database. In case you are unfamiliar with ETS, it "allows us to store any Erlang/Elixir term in an in-memory table" (taken from the [Elixir documentation](http://elixir-lang.org/getting-started/mix-otp/ets.html)).
 
-Create a file `lib/rift_tutorial/handler.ex` with the following contents:
+Create a file `lib/riffed_tutorial/handler.ex` with the following contents:
 
 ```elixir
 defmodule RiffedTutorial.Handler do
@@ -150,7 +150,7 @@ Notice the use of `Models.User.new` inside `register_user`. When creating instan
 
 ## 4. Building the Client
 
-The next step is to build a client to connect to our server. The client will be part of the same project, and in fact running on the same host, but for example purposes this is fine. Create the file `lib/rift_tutorial/client.ex` with the following contents:
+The next step is to build a client to connect to our server. The client will be part of the same project, and in fact running on the same host, but for example purposes this is fine. Create the file `lib/riffed_tutorial/client.ex` with the following contents:
 
 ```elixir
 defmodule RiffedTutorial.Client do
@@ -178,7 +178,7 @@ It's important to notice that we have used `auto_import_structs: false`, since o
 
 ### Optional Step
 
-If you really want, you can set `auto_import_structs: false` on both the client and server modules, and define a new file containing the models directly in `lib/rift_tutorial/models.ex`:
+If you really want, you can set `auto_import_structs: false` on both the client and server modules, and define a new file containing the models directly in `lib/riffed_tutorial/models.ex`:
 
 ```elixir
 defmodule RiffedTutorial.Models do
@@ -198,7 +198,7 @@ If you do this, you can remove the `defenum` and `enumerize_struct` parts of the
 
 ## 5. Setting up the Supervision Tree
 
-The final step is to go into `lib/rift_tutorial.ex` and add your server, client, and handler as children to be supervised:
+The final step is to go into `lib/riffed_tutorial.ex` and add your server, client, and handler as children to be supervised:
 
 ```elixir
 children = [

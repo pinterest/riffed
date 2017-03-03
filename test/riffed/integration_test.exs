@@ -49,7 +49,7 @@ defmodule IntegrationTest do
     error_handler: &ServerWithErrorHandler.on_failure/2
 
     def on_failure(_, _) do
-      File.write!("rift_error_test.log", "The client left us in the dust")
+      File.write!("riffed_error_test.log", "The client left us in the dust")
     end
   end
 
@@ -143,13 +143,13 @@ defmodule IntegrationTest do
   end
 
   test "Can attach own error handler for when client disconnects" do
-    refute File.exists?("rift_error_test.log")
+    refute File.exists?("riffed_error_test.log")
     {:ok, client} = ErrorHandlerClient.start_link
     ErrorHandlerClient.close(client)
     # Sleep for a bit while the server writes to file
     :timer.sleep(100)
-    assert File.read!("rift_error_test.log") == "The client left us in the dust"
-    File.rm! "rift_error_test.log"
+    assert File.read!("riffed_error_test.log") == "The client left us in the dust"
+    File.rm! "riffed_error_test.log"
   end
 
   test "Can reconnect client" do
