@@ -155,14 +155,17 @@ defmodule Riffed.Client do
       end
 
       def init(:ok) do
+        Process.flag(:trap_exit, true)
         {:ok, Client.new(&connect/0)}
       end
 
       def init({host, port}) do
+        Process.flag(:trap_exit, true)
         {:ok, Client.new(fn -> connect(host, port) end)}
       end
 
       def init(thrift_server) do
+        Process.flag(:trap_exit, true)
         {:ok, Client.new(fn -> {:ok, thrift_server} end)}
       end
 
@@ -192,11 +195,24 @@ defmodule Riffed.Client do
         {:reply, :ok, Client.new(client.connect)}
       end
 
+      def handle_info({:EXIT, _from, reason}, client=%Client{client: thrift_client}) do
+        :thrift_client.close(thrift_client)
+        {:stop, :normal, %{client | client: nil}}
+      end
+
       unquote_splicing(client_functions)
 
       def handle_call({call_name, args}, _parent, client) do
-        {new_client, response} = call_thrift(client, call_name, args)
-        {:reply, response, new_client}
+        case call_thrift(client, call_name, args) do
+          {:ok, new_client, response} ->
+            {:reply, response, new_client}
+
+          {:error, :disconnected} ->
+            {:reply, :disconnected, client}
+
+          {:error, reason} ->
+            {:stop, reason, %Client{}}
+        end
       end
 
       defp call_thrift(client, call_name, args) do
@@ -221,12 +237,17 @@ defmodule Riffed.Client do
             :thrift_client.close(thrift_client)
             new_client = Client.reconnect(client)
             call_thrift(new_client, call_name, args, retry_count + 1)
-          err = {:error, _} ->
-            {new_client, err}
+
+          err = {:error, reason} ->
+            # try to close this, this process is going to die anyway.
+            :thrift_client.close(thrift_client)
+            err
+
           {:ok, rsp} ->
-            {new_client, rsp}
+            {:ok, new_client, rsp}
+
           other = {other, rsp} ->
-            {new_client, other}
+            {:ok, new_client, other}
         end
       end
 
