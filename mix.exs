@@ -15,7 +15,7 @@ defmodule Riffed.Mixfile do
      thrift_files: Mix.Utils.extract_files(["thrift"], [:thrift]),
      docs: [output: "doc/generated"],
      test_coverage: [tool: ExCoveralls],
-     preferred_cli_env: ["coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test],
+     preferred_cli_env: [coveralls: :test, "coveralls.detail": :test, "coveralls.post": :test],
 
      # Hex
      description: description(),
